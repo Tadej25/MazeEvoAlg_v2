@@ -15,7 +15,7 @@ namespace Assets
         public string StringSeed { get; set; }
         public int[,] Maze { get; set; }
         public List<string> ChildrenSeeds { get; set; }
-        public System.Random r;
+        public System.Random r { get; set; }
 
         public Builder(int size, int numOfWalls, string seed, System.Random ra)
         {
@@ -66,11 +66,23 @@ namespace Assets
 
         public void BuildMaze()
         {
+            long sumStringSeed = 0;
+            int stringSeedCurrentIndex = 0;
+
+            foreach (char letter in StringSeed)
+            {
+                sumStringSeed += letter;
+            }
             for (int i = 0; i < Size; i++)
             {
                 for (int j = 0; j < Size; j++)
                 {
-                    if (r.Next(0, 2) == 1 && NumOfWalls > 0)
+                    long currentStringSeedLetterValue = StringSeed[stringSeedCurrentIndex++];
+                    
+                    if (stringSeedCurrentIndex >= StringSeed.Length)
+                        stringSeedCurrentIndex = 0;
+
+                    if ((currentStringSeedLetterValue + sumStringSeed) % 2 == 0)
                     {
                         Maze[i, j] = 1;
                         NumOfWalls--;
@@ -84,19 +96,26 @@ namespace Assets
             string childStringSeed = "";
             for (int i = 0; i < parent1.StringSeed.Length; i++)
             {
-                int chance = parent1.r.Next(1, 205);
 
-                //Vrejetnost da vzame črko od starša 1  je med 0 in 100
-                if (chance < 101)
+                //Vzamemo trenutno črko od obeh strašev
+                //Njihove char vrednosti seštejemo
+                //Vzamemo zadnjo številko od seštevka
+                int parentOneCurrentLetter = parent1.StringSeed[i];
+                int parentTwoCurrentLetter = parent2.StringSeed[i];
+                string combinedParentLettersString = (parentOneCurrentLetter + parentTwoCurrentLetter).ToString();
+                int lastNumberOfCombinedParentString = combinedParentLettersString[combinedParentLettersString.Length - 1];
+
+                if ((parentOneCurrentLetter % 2 == 0 && parentTwoCurrentLetter % 2 != 0) ||
+                    (parentOneCurrentLetter % 2 != 0 && parentTwoCurrentLetter % 2 == 0))
                 {
                     childStringSeed += parent1.StringSeed[i];
                 }
-                //Vrejetnost da vzame črko od starša 1  je med 101 in 200
-                else if (chance > 100 && chance < 201)
+                //Če so obe številki trenutne črke strašev sodi potev vzami lrko straša 2 
+                else if(parentOneCurrentLetter % 2 == 0 && parentTwoCurrentLetter % 2 == 0)
                 {
                     childStringSeed += parent2.StringSeed[i];
                 }
-                //Zelo majhna verjetnost da se generira nova črka (MUTACIJA)
+                //Drugače vzami naključno črko
                 else
                 {
                     char letter = (char)parent1.r.Next(65, 91);
@@ -104,6 +123,11 @@ namespace Assets
                     while (letter == parent1.StringSeed[i] || letter == parent2.StringSeed[i])
                     {
                         letter = (char)parent1.r.Next(65, 91);
+                        switch (parent1.r.Next(0, 3))
+                        {
+                            case 0: letter = (char)parent1.r.Next(48, 58); break;
+                            case 1: letter = (char)parent1.r.Next(97, 123); break;
+                        }
                     }
                     childStringSeed += letter;
                 }

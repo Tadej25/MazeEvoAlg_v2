@@ -22,6 +22,9 @@ public class MazeBuilder : MonoBehaviour
     public Text G_Text;
     public Text I_Text;
 
+    [Min(9)]
+    public int SeedLenght = 9;
+
     [Range(0,1)]
     public float OpenSpacesWeight = 1;
     [Range(0,1)]
@@ -39,7 +42,7 @@ public class MazeBuilder : MonoBehaviour
     List<int[,]> mazes;
     List<Fitness> result;
 
-    bool killThread = false;
+    public bool killThread = false;
     Thread t;
 
     // An object used to LOCK for thread safe accesses
@@ -75,7 +78,10 @@ public class MazeBuilder : MonoBehaviour
             else
             {
                 //Reprodukcija
+                ///TODO: Poštimaj reprodukcijo, da ne pride do tega, da postane en seed dominanten
+                ///magari pogruntaj nov način kako se generira novi seed ali pa kako se določi novi partner
                 var breedingInduviduals = result.OrderByDescending(x => x.Score).ToList().GetRange(0, result.Count / 2);
+                var allStringSeed = breedingInduviduals.Select(x => x.builder.StringSeed).ToList();
                 Queue<string> newGenerationSeeds = new Queue<string>();
                 int numberOfChildren = 4;
 
@@ -87,13 +93,21 @@ public class MazeBuilder : MonoBehaviour
                     Builder parent1 = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren).First().builder;
                     Builder parent2 = null;
                     int attempts = 0;
-                    int similarity = 9;
+                    int similarity = parent1.StringSeed.Length;
                     //Preveri morda če ta drugi partner že ni na kapaciteti z otroci
                     while (parent2 == null && parent1 != parent2 && attempts < 10)
                     {
                         try
                         {
-                            var foundParent = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren && x.builder != parent1 && Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity - attempts)).FirstOrDefault();
+                            var foundParent = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren && x.builder != parent1 && Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity)).FirstOrDefault();
+                            var nonEqualPartnerSeeds = breedingInduviduals.Where(x => x.builder.StringSeed != parent1.StringSeed).ToList();
+                            var nonEqualPartnerSeeds1 = breedingInduviduals.Where(x => x.builder.StringSeed != parent1.StringSeed).Select(x => x.builder.StringSeed).ToList();
+                            var differentPartnerSeed = nonEqualPartnerSeeds.Where(x => Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity - attempts)).ToList();
+                            var differentPartnerSeed1 = nonEqualPartnerSeeds.Where(x => Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity - attempts)).Select(x => x.builder.StringSeed).ToList();
+                            if (differentPartnerSeed.Count > 0)
+                            {
+                                foundParent = differentPartnerSeed.First();
+                            }
                             if (foundParent != null)
                             {
                                 parent2 = foundParent.builder;
@@ -112,6 +126,10 @@ public class MazeBuilder : MonoBehaviour
                     if (attempts >= 9)
                     {
                         Debug.LogError("Nismo našli partnerja, gen: " + gen);
+                        if (killThread)
+                        {
+                            t.Abort();
+                        }
                     }
                     else
                     {
@@ -185,7 +203,7 @@ public class MazeBuilder : MonoBehaviour
     string GenerateRandomCharArray(System.Random r)
     {
         string res = "";
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < SeedLenght; i++)
         {
             char letter = (char)r.Next(65, 91);
             switch (r.Next(0, 3))
@@ -253,6 +271,18 @@ public class MazeBuilder : MonoBehaviour
         if (killThread)
         {
             t.Abort();
+        }
+    }
+
+    void OnApplicationQuit()
+    {
+        try
+        {
+            t.Abort();
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e.Message);
         }
     }
 }
