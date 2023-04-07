@@ -574,23 +574,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   black: {fileID: 5747489027817021560, guid: 8657243ab7e3df341b445c366f3a0c85, type: 3}
   white: {fileID: 4237805076083837684, guid: 1b55dcdd02854f34c8686e5383861f13, type: 3}
-  numOfGenerations: 5
-  numOfIterations: 5
+  numOfGenerations: 100
+  numOfIterations: 100
   width: 50
   G_Slider: {fileID: 1994363514}
   I_Slider: {fileID: 444540078}
   G_Text: {fileID: 1657317025}
   I_Text: {fileID: 1338862574}
   SeedText: {fileID: 480666856}
+  OpenSpacesFitnessText: {fileID: 1906629416}
+  ClosedSpacesFitnessText: {fileID: 1084672095}
+  DeadEndFitnessText: {fileID: 1075994867}
+  OuterWallFitnessText: {fileID: 1906924082}
+  WalledSpacesFitnessText: {fileID: 1121819661}
+  CorridorFitnessText: {fileID: 878531340}
   SeedLenght: 50
-  OpenSpacesWeight: 0
+  OpenSpacesWeight: 1
   ClosedSpacesWeight: 1
-  DeadEndWeight: 0
+  DeadEndWeight: 1
   OuterWallWeight: 1
-  WalledSpacesWeight: 0
-  CorridorWeight: 0
+  WalledSpacesWeight: 1
+  CorridorWeight: 1
   loading: {fileID: 162885003}
   killThread: 0
+  SetSeed: 0
 --- !u!4 &371849867
 Transform:
   m_ObjectHideFlags: 0
