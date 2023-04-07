@@ -64,10 +64,38 @@ namespace Assets
         }
         public float DeadEndsFitnessWeight { get; set; } = 1;
 
+        float _walledSpacesFitness;
+        public float WalledSpacesFitness
+        {
+            get
+            {
+                return _walledSpacesFitness * WalledSpacesFitnessWeight;
+            }
+            set
+            {
+                _walledSpacesFitness = value;
+            }
+        }
+        public float WalledSpacesFitnessWeight { get; set; } = 1;
+
+        float _corridorFitness;
+        public float CorridorFitness
+        {
+            get
+            {
+                return _corridorFitness * CorridorFitnessWeight;
+            }
+            set
+            {
+                _corridorFitness = value;
+            }
+        }
+        public float CorridorFitnessWeight { get; set; } = 1;
+
         public float Score { 
             get 
             {
-                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness;
+                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness + WalledSpacesFitness;
             } 
         }
         public Builder builder { get; set; }
@@ -112,8 +140,18 @@ namespace Assets
             int numOfDeadEnds = 0;
             float deadEndsFitness = 0;
 
-            //Preverjamo zgornji in spodnji rob
+            /**/
+            int numWalledSpaces = 0;
+            int maxNumOfWalledSpaces = (width - 2) * (height - 2);
+            float walledSpacesFitness = 0;
+
+            /**/
+            int numOfCorridors = 0;
+            int maxNumOfCorridors = (((width - 2)) * ((height - 2) / 2) + ((height - 2) / 2 - 1));
+            float corridorFitness = 0;
+
             #region OUTER_WALL_FITNESS
+            //Preverjamo zgornji in spodnji rob
             for (int i = 0; i < width; i++)
             {
                 if (maze[0, i] == 1)
@@ -232,10 +270,69 @@ namespace Assets
             deadEndsFitness = (float)numOfDeadEnds / maxNumOfDeadEnds;
             #endregion
 
+            #region WALLED_SPACES_FITNESS
+            for (int i = 1; i < height - 1; i++)
+            {
+                for (int j = 1; j < width - 1; j++)
+                {
+                    /*
+                     ABC
+                     D F
+                     GHI
+                     */
+                    //Gremo čez vsa polja ki niso na robu, ter preverimo ali ima celica zid okoli sebe in če ga nima je odprt prostor
+                    if (
+                        maze[i + 1, j + 1] == 1 &&  //I
+                        maze[i + 1, j - 1] == 1 &&  //G
+                        maze[i + 1, j] == 1 &&      //H 
+                        maze[i - 1, j + 1] == 1 &&  //C
+                        maze[i - 1, j] == 1 &&      //B
+                        maze[i - 1, j - 1] == 1 &&  //A
+                        maze[i, j + 1] == 1 &&      //F
+                        maze[i, j - 1] == 1         //D
+                        )
+                    {
+                        numWalledSpaces++;
+                    }
+                }
+            }
+            int tempWalled = maxNumOfWalledSpaces - numWalledSpaces;
+            walledSpacesFitness = (float)tempWalled / (float)maxNumOfWalledSpaces;
+            #endregion
+
+            #region CORRIDOR_FITNESS
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    //Preskočimo rob labirinta ker tam ne more biti slepa ulica
+                    if (x == 0 || y == 0 || x == width - 1 || y == height - 1)
+                        continue;
+
+                    if (maze[y, x] == 0)
+                    {
+                        //Seštejemo vse vrednosti okoli trenutne celice (zid = 1, pot = 0) in če je seštevek enak 2 pomeni da so okoli
+                        //trenutne celice dve poti in dva zida
+                        int test = maze[y - 1, x] + maze[y + 1, x] + maze[y, x - 1] + maze[y, x + 1];
+                        if (test == 2)
+                        {
+                            numOfCorridors++;
+                        }
+                    }
+                }
+            }
+
+            deadEndsFitness = (float)numOfCorridors / maxNumOfCorridors;
+
+            #endregion
+
             fit.OpenSpacesFitness = openSpacesFitness;
             fit.OuterWallFitness = outerWallFitness;
             fit.ClosedSpacesFitness = closedSpacesFitness;
             fit.DeadEndsFitness = deadEndsFitness;
+            fit.WalledSpacesFitness = walledSpacesFitness;
+            fit.CorridorFitness = corridorFitness;
             return fit;
         }
     }

@@ -66,26 +66,23 @@ namespace Assets
 
         public void BuildMaze()
         {
-            long sumStringSeed = 0;
-            int stringSeedCurrentIndex = 0;
-
-            foreach (char letter in StringSeed)
+            //Vsako črko pretvorimo v binarno vrednost in uporabimo to vrednost za izris labirinta
+            string seedInBinary = "";
+            foreach (char c in StringSeed)
             {
-                sumStringSeed += letter;
+                seedInBinary += Convert.ToString(c, 2);
             }
+            int start = 0;
+            int index = start;
             for (int i = 0; i < Size; i++)
             {
                 for (int j = 0; j < Size; j++)
                 {
-                    long currentStringSeedLetterValue = StringSeed[stringSeedCurrentIndex++];
-                    
-                    if (stringSeedCurrentIndex >= StringSeed.Length)
-                        stringSeedCurrentIndex = 0;
-
-                    if ((currentStringSeedLetterValue + sumStringSeed) % 2 == 0)
+                    Maze[i, j] = int.Parse(seedInBinary[index++].ToString());
+                    if (index >= seedInBinary.Length)
                     {
-                        Maze[i, j] = 1;
-                        NumOfWalls--;
+                        start = r.Next(0, seedInBinary.Length);
+                        index = start;
                     }
                 }
             }
@@ -94,40 +91,28 @@ namespace Assets
         public static string GenerateChildFromParents(Builder parent1, Builder parent2)
         {
             string childStringSeed = "";
+            //45% da vzame gen od straša1
+            //45% da vzame gen od starša2
+            //5% da generira novi gen MUTACIJA
             for (int i = 0; i < parent1.StringSeed.Length; i++)
             {
-
-                //Vzamemo trenutno črko od obeh strašev
-                //Njihove char vrednosti seštejemo
-                //Vzamemo zadnjo številko od seštevka
-                int parentOneCurrentLetter = parent1.StringSeed[i];
-                int parentTwoCurrentLetter = parent2.StringSeed[i];
-                string combinedParentLettersString = (parentOneCurrentLetter + parentTwoCurrentLetter).ToString();
-                int lastNumberOfCombinedParentString = combinedParentLettersString[combinedParentLettersString.Length - 1];
-
-                if ((parentOneCurrentLetter % 2 == 0 && parentTwoCurrentLetter % 2 != 0) ||
-                    (parentOneCurrentLetter % 2 != 0 && parentTwoCurrentLetter % 2 == 0))
+                int chance = parent1.r.Next(1, 101);
+                if (chance < 46)
                 {
                     childStringSeed += parent1.StringSeed[i];
                 }
-                //Če so obe številki trenutne črke strašev sodi potev vzami lrko straša 2 
-                else if(parentOneCurrentLetter % 2 == 0 && parentTwoCurrentLetter % 2 == 0)
+                else if (chance < 96)
                 {
                     childStringSeed += parent2.StringSeed[i];
                 }
-                //Drugače vzami naključno črko
                 else
                 {
-                    char letter = (char)parent1.r.Next(65, 91);
-                    //Zagotovimo da generiramo različno črko od staršev
-                    while (letter == parent1.StringSeed[i] || letter == parent2.StringSeed[i])
+                    char letter = 'a';
+                    switch (parent1.r.Next(0, 3))
                     {
-                        letter = (char)parent1.r.Next(65, 91);
-                        switch (parent1.r.Next(0, 3))
-                        {
-                            case 0: letter = (char)parent1.r.Next(48, 58); break;
-                            case 1: letter = (char)parent1.r.Next(97, 123); break;
-                        }
+                        case 0: letter = (char)parent1.r.Next(48, 58); break;
+                        case 1: letter = (char)parent1.r.Next(65, 91); break;
+                        case 2: letter = (char)parent1.r.Next(97, 123); break;
                     }
                     childStringSeed += letter;
                 }

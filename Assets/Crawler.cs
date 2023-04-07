@@ -45,7 +45,6 @@ namespace Assets
 
         private static void GetNeighbours(ref Cell newC, ref Cell[,] newMaze)
         {
-            ///TODO: naredi crawlerja ki gre čez vse možne pozicije (ki niso 1) in preverja ali je zaprt prostor ali ne
             if (newC.PosX > 0)
             {
                 if (newMaze[newC.PosY, newC.PosX - 1].Value == 0)

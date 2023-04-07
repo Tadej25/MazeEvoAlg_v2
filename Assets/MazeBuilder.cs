@@ -12,7 +12,9 @@ public class MazeBuilder : MonoBehaviour
     public GameObject black;
     public GameObject white;
 
+    //Št generacij
     public int numOfGenerations = 50;
+    //Št osebkov na generacijo
     public int numOfIterations = 50;
     public int width = 50;
 
@@ -21,10 +23,20 @@ public class MazeBuilder : MonoBehaviour
 
     public Text G_Text;
     public Text I_Text;
+    public Text SeedText;
 
+    public Text OpenSpacesFitnessText;
+    public Text ClosedSpacesFitnessText;
+    public Text DeadEndFitnessText;
+    public Text OuterWallFitnessText;
+    public Text WalledSpacesFitnessText;
+    public Text CorridorFitnessText;
+    
+    //Dolžina seed-a
     [Min(9)]
     public int SeedLenght = 9;
 
+    //Uteži
     [Range(0,1)]
     public float OpenSpacesWeight = 1;
     [Range(0,1)]
@@ -33,6 +45,10 @@ public class MazeBuilder : MonoBehaviour
     public float DeadEndWeight = 1;
     [Range(0,1)]
     public float OuterWallWeight = 1;
+    [Range(0,1)]
+    public float WalledSpacesWeight = 1;
+    [Range(0,1)]
+    public float CorridorWeight = 1;
 
     public GameObject loading;
 
@@ -42,7 +58,10 @@ public class MazeBuilder : MonoBehaviour
     List<int[,]> mazes;
     List<Fitness> result;
 
+    //Ročno ubijemo thread generacije
     public bool killThread = false;
+    //Ali želimo uporabiti navedeno dolžino seed-a ali se naj uporabi dolžina seed-a iz širine labirinta
+    public bool SetSeed = false;
     Thread t;
 
     // An object used to LOCK for thread safe accesses
@@ -54,10 +73,15 @@ public class MazeBuilder : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        if (SetSeed == false)
+        {
+            SeedLenght = (int)Math.Pow(width, 2)/8;
+        }
         instantiatedGO = new List<GameObject>();
         generations = new Dictionary<int, List<Fitness>>();
         mazes = new List<int[,]>();
 
+        //Generacijo damo v svoj thread, da ne ustavi programa med generiranjem
         t = new Thread(delegate ()
         {
             GenerateMaze();
@@ -78,45 +102,60 @@ public class MazeBuilder : MonoBehaviour
             else
             {
                 //Reprodukcija
-                ///TODO: Poštimaj reprodukcijo, da ne pride do tega, da postane en seed dominanten
-                ///magari pogruntaj nov način kako se generira novi seed ali pa kako se določi novi partner
                 var breedingInduviduals = result.OrderByDescending(x => x.Score).ToList().GetRange(0, result.Count / 2);
                 var allStringSeed = breedingInduviduals.Select(x => x.builder.StringSeed).ToList();
                 Queue<string> newGenerationSeeds = new Queue<string>();
-                int numberOfChildren = 4;
 
                 while (newGenerationSeeds.Count < numOfIterations)
                 {
+                    //Izberemo prvega straša tako da izberemo prvega v razverščenem seznamu od najmanj otrok do največ (da svak dobi vsaj enega)
                     int MinNumOfChildren = 0;
                     var temp = breedingInduviduals.OrderBy(x => x.builder.ChildrenSeeds.Count).ToList();
                     MinNumOfChildren = temp[0].builder.ChildrenSeeds.Count;
                     Builder parent1 = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren).First().builder;
                     Builder parent2 = null;
                     int attempts = 0;
-                    int similarity = parent1.StringSeed.Length;
+                    int similarity = parent1.StringSeed.Length/2;
                     //Preveri morda če ta drugi partner že ni na kapaciteti z otroci
                     while (parent2 == null && parent1 != parent2 && attempts < 10)
                     {
                         try
                         {
-                            var foundParent = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren && x.builder != parent1 && Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity)).FirstOrDefault();
-                            var nonEqualPartnerSeeds = breedingInduviduals.Where(x => x.builder.StringSeed != parent1.StringSeed).ToList();
-                            var nonEqualPartnerSeeds1 = breedingInduviduals.Where(x => x.builder.StringSeed != parent1.StringSeed).Select(x => x.builder.StringSeed).ToList();
-                            var differentPartnerSeed = nonEqualPartnerSeeds.Where(x => Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity - attempts)).ToList();
-                            var differentPartnerSeed1 = nonEqualPartnerSeeds.Where(x => Builder.ComputeSimilarity(parent1.StringSeed, x.builder.StringSeed) >= (similarity - attempts)).Select(x => x.builder.StringSeed).ToList();
-                            if (differentPartnerSeed.Count > 0)
+                            //seznam partnerjev naključno zmešamo
+                            int n = breedingInduviduals.Count;
+                            while (n > 1)
                             {
-                                foundParent = differentPartnerSeed.First();
+                                n--;
+                                int k = r.Next(n + 1);
+                                var value = breedingInduviduals[k];
+                                breedingInduviduals[k] = breedingInduviduals[n];
+                                breedingInduviduals[n] = value;
+                            }
+
+                            //Poiščemo prvega partnerja ki je trenutnemu strašu najmanj podoben
+                            Fitness foundParent = null;
+                            foreach (var induvidual in breedingInduviduals)
+                            {
+                                if (induvidual.builder != parent1)
+                                {
+                                    int parentSimilarity = Builder.ComputeSimilarity(parent1.StringSeed, induvidual.builder.StringSeed);
+                                    if (parentSimilarity >= similarity)
+                                    {
+                                        foundParent = induvidual;
+                                        break;
+                                    }
+                                }
                             }
                             if (foundParent != null)
-                            {
+                            { 
                                 parent2 = foundParent.builder;
                             }
                             else
                             {
-                                MinNumOfChildren++;
+                                //Če partnerja ne najdemo zmanjšamo potrebno razliko za iskanje partnerja
+                                similarity--;
                             }
-                            attempts++;
+                            //attempts++;
                         }
                         catch (Exception e)
                         {
@@ -150,7 +189,7 @@ public class MazeBuilder : MonoBehaviour
             _mainThreadActions.Enqueue(() =>
             {
                 G_Slider.minValue = 1;
-                G_Slider.maxValue = generations.Count - 1;
+                G_Slider.maxValue = generations.Count;
 
                 I_Slider.minValue = 1;
                 I_Slider.maxValue = generations[1].Count - 1;
@@ -186,6 +225,8 @@ public class MazeBuilder : MonoBehaviour
                 fit.ClosedSpacesFitnessWeight = ClosedSpacesWeight;
                 fit.DeadEndsFitnessWeight = DeadEndWeight;
                 fit.OuterWallFitnessWeight = OuterWallWeight;
+                fit.WalledSpacesFitnessWeight = WalledSpacesWeight;
+                fit.CorridorFitnessWeight = CorridorWeight;
                 fits.Add(fit);
 
                 //Thread.Sleep(1);
@@ -205,11 +246,12 @@ public class MazeBuilder : MonoBehaviour
         string res = "";
         for (int i = 0; i < SeedLenght; i++)
         {
-            char letter = (char)r.Next(65, 91);
+            char letter = 'a';
             switch (r.Next(0, 3))
             {
                 case 0: letter = (char)r.Next(48, 58); break;
-                case 1: letter = (char)r.Next(97, 123); break;
+                case 1: letter = (char)r.Next(65, 91); break;
+                case 2: letter = (char)r.Next(97, 123); break;
             }
 
             res += letter;
@@ -226,6 +268,14 @@ public class MazeBuilder : MonoBehaviour
         I_Text.text = ((int)I_Slider.value).ToString();
 
         DrawMaze(generations[generation][iteration].builder.Maze);
+        SeedText.text = generations[generation][iteration].builder.StringSeed;
+
+        OpenSpacesFitnessText.text = "OS: " + generations[generation][iteration].OpenSpacesFitness.ToString();
+        ClosedSpacesFitnessText.text = "CS: " + generations[generation][iteration].ClosedSpacesFitness.ToString();
+        WalledSpacesFitnessText.text = "WS: " + generations[generation][iteration].WalledSpacesFitness.ToString();
+        DeadEndFitnessText.text = "DE: " + generations[generation][iteration].DeadEndsFitness.ToString();
+        OuterWallFitnessText.text = "OW: " + generations[generation][iteration].OuterWallFitness.ToString();
+        CorridorFitnessText.text = "Cr: " + generations[generation][iteration].CorridorFitness.ToString();
     }
 
     void DrawMaze(int[,] maze)
@@ -257,6 +307,7 @@ public class MazeBuilder : MonoBehaviour
 
     private void Update()
     {
+        //Uporabljeno za izbris loading ekrana iz drugega threda
         // Lock for thread safe access 
         lock (_lock)
         {
