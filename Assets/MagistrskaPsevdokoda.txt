@@ -1,0 +1,297 @@
+FUNCTION MAIN()
+    SET maxNumberOfGenerations TO 10
+    SET mazeWidth TO 10
+    SET Random
+    SET fitnessOfMazes AS ARRAY
+    SET numberOfInduvidualsPerGeneration to 10
+	SET seedLength TO 10
+    
+    FOR currentGeneration TO maxNumberOfGenerations
+        IF fitnessOfMazes IS empty
+            SET fitnessOfMazes TO CALL FUNCTION GenerateInduviduals(with parameters: currentGeneration, mazeWidth, Random)
+        ELSE
+            SET individualsToReproduce TO best half of fitnessOfMazes by score
+            SET newGenerationSeeds AS ARRAY
+            
+            WHILE number of newGenerationSeeds < numberOfInduvidualsPerGeneration
+                SET minNumberOfChildren TO individual with least the children in individualsToReproduce
+                SET parent1 TO first induvidual with minNumberOfChildren in individualsToReproduce
+                SET parent2 TO empty
+                
+                SET allowedMinSimilarityBetweenParents to half the length of parent1 seed
+                WHILE parent2 IS empty AND parent1 IS NOT parent2
+                    randomly shuffle individualsToReproduce
+                    FOR EACH induvidual IN individualsToReproduce
+                        IF induvidual IS NOT parent1
+                            SET similarity TO compare similarity bewteen parent1 seed and induvidual seed
+                            IF similarity >= allowedMinSimilarityBetweenParents
+                                SET parent2 TO induvidual
+                                STOP FOR
+                            END IF
+                        END IF
+                    END FOR
+                    SET allowedMinSimilarityBetweenParents = allowedMinSimilarityBetweenParents - 1
+                END WHILE
+                SET childSeed = CALL FUNCTION GenerateSeedFromParents(with parameters: parent1, parent2)
+                ADD childSeed TO newGenerationSeeds
+                ADD childSeed TO children of parent1
+                ADD childSeed TO children of parent2
+            END WHILE
+            SET fitnessOfMazes TO CALL FUNCTION GenerateInduviduals(with parameters: currentGeneration, mazeWidth, Random, newGenerationSeeds)
+        END IF
+    END FOR
+END FUNCTION
+
+FUNCTION GenerateInduviduals(parameters: currentGeneration, mazeWidth, Random, newGenerationSeeds defaults to empty)
+	SET fitnesses AS ARRAY
+	FOR 1 TO numberOfInduvidualsPerGeneration
+		SET currentSeed TO ""
+		IF newGenerationSeeds is empty
+			SET childSeed TO CALL FUNCTION GenerateRandomSeed(with parameters: Random)
+		ELSE
+			SET currentSeed TO first seed in newGenerationSeeds
+			delete first item in newGenerationSeeds
+		END IF
+		SET currentMaze TO CALL FUNCTION BuildMaze(with parameters: mazeWidth, currentSeed, Random)
+		SET fitness TO CALL FUNCTION CheckFitness(with parameters: currentMaze)
+		ADD fitness TO fitnesses
+	END FOR
+	
+	RETURN fitnesses
+END FUNCTION
+
+FUNCTION GenerateRandomSeed(parameters: Random)
+	SET result TO ""
+	FOR 0 TO seedLength
+		SET chance TO Random from including 0 to excluding 3
+		IF chance = 0
+			result = result + Random capitalized letter
+		ELSE IF chance = 1
+			result = result + Random letter
+		ELSE
+			result = result + Random number from including 0 to excluding 10
+		END IF
+	END FOR
+	
+	RETURN result
+END FUNCTION
+
+FUNCTION GenerateSeedFromParents(parameters: parent1, parent2)
+	SET result TO ""
+	FOR 0 TO length of parent1 seed
+		SET chance TO Random from including 1 to excluding 101
+		IF chance < 46
+			result = result + current character of parent1 seed
+		ELSE IF chance < 96
+			result = result + current character of parent2 seed
+		ELSE
+			SET characterChance TO Random from including 0 to excluding 3
+			IF characterChance = 0
+				result = result + Random capitalized letter
+			ELSE IF characterChance = 1
+				result = result + Random letter
+			ELSE
+				result = result + Random number from including 0 to excluding 10
+			END IF
+		END IF
+	END FOR
+	
+	RETURN result
+END FUNCTION
+
+FUNCTION BuildMaze(parameters: mazeWidth, currentSeed, Random)
+	SET seedInBinary TO convert every character in currentSeed to a binary value
+	SET start TO 0
+	SET index TO start
+	SET maze TO 2D ARRAY
+	
+	FOR x:0 TO mazeWidth
+		FOR y:0 TO mazeWidth
+			SET maze of x and y TO character in seedInBinary at position of index
+			SET index TO index + 1
+			IF index > length of seedInBinary
+				SET start TO Random bewteen including 0 to excluding length of seedInBinary
+				SET index TO start
+			END IF
+		END FOR
+	END FOR
+	
+	RETURN maze
+END FUNCTION
+
+FUNCTION CheckFitness(parameters: maze)
+	SET fitness TO empty
+	SET width TO width of maze
+	
+	SET numberOpenSpaces TO 0
+	SET maxNumberOfOpenSpaces TO (width - 2) * (width - 2)
+	SET openSpacesFitness TO 0
+	
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			IF maze of x and y = 0 AND
+			maze of x + 1 and y + 1 = 0 AND
+			maze of x + 1 and y - 1 = 0 AND
+			maze of x + 1 and y = 0 AND
+			maze of x - 1 and y + 1 = 0 AND
+			maze of x - 1 and y - 1 = 0 AND
+			maze of x - 1 and y = 0 AND
+			maze of x and y + 1 = 0 AND
+			maze of x and y - 1 = 0
+				SET numberOpenSpaces TO numberOpenSpaces + 1
+			END IF
+		END FOR
+	END FOR
+	
+	SET temp TO maxNumberOfOpenSpaces - numberOpenSpaces
+	SET openSpacesFitness TO temp / maxNumberOfOpenSpaces
+	
+	
+	SET numberOfOuterWalls TO 0
+	SET maxNummberOfOuterWalls TO width * 2 + (height - 2) * 2
+	SET outerWallFitness TO 0
+	
+	FOR i:0 TO width
+		IF maze of 0 and i = 1
+			SET numberOfOuterWalls TO numberOfOuterWalls + 1
+		END IF
+		IF maze of width - 1 and i = 1
+			SET numberOfOuterWalls TO numberOfOuterWalls + 1
+		END IF
+	END FOR
+	FOR i:0 TO width
+		IF maze of i and 0 = 1
+			SET numberOfOuterWalls TO numberOfOuterWalls + 1
+		END IF
+		IF maze of i and width - 1 = 1
+			SET numberOfOuterWalls TO numberOfOuterWalls + 1
+		END IF
+	END FOR
+	
+	SET outerWallFitness TO numberOfOuterWalls / maxNummberOfOuterWalls
+	IF outerWallFitness = 1
+		SET outerWallFitness TO 0
+	END IF
+	
+	
+	SET maxNumberOfClosedSpaces TO ((width - 2) * (width - 2) / 2)
+	SET numberOfClosedSpaces TO 0
+	SET closedSpacesFitness TO 0
+	
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			SET currentCell TO maze of x and y
+			IF currentCell = 0 AND currentCell was not visited
+				SET currentCell to visited
+				SET neighbours TO CALL FUNCTION CheckNeighbours(with parameters: currentCell, maze)
+				IF any neighbour that is on the edge of the maze
+					SET numberOfClosedSpaces TO numberOfClosedSpaces + 1
+				END IF
+			END IF
+		END FOR
+	END FOR
+	SET closedSpacesPow TO numberOfClosedSpaces^2
+	IF closedSpacesPow > maxNumberOfClosedSpaces
+		SET closedSpacesPow TO maxNumberOfClosedSpaces
+	END IF
+	SET closedSpacesFitness TO Absolute(maxNumberOfClosedSpaces - closedSpacesPow) / maxNumberOfClosedSpaces
+	
+	
+	SET maxNumberOfDeadEnds TO (width - 2) * (width - 2) / 2
+	SET numberOfDeadEnds TO 0
+	SET deadEndsFitness TO 0
+	
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			IF x or y is 0 or width - 1
+				SKIP
+			END IF
+			IF maze of x and y = 0
+				SET sumOfNeighbours TO (maze of x - 1 and y) + (maze of x + 1 and y) + (maze of x and y - 1) + (maze of x and y + 1)
+				IF sumOfNeighbours = 3
+					SET numberOfDeadEnds TO numberOfDeadEnds + 1
+				END IF
+			END IF
+		END FOR
+	END FOR
+	
+	SET deadEndsFitness TO numberOfDeadEnds / maxNumberOfDeadEnds
+	
+	
+	SET numberOfWalledSpaces TO 0
+	SET maxNumberOfWalledSpaces TO (width - 2) * (width - 2)
+	SET walledSpacesFitness TO 0
+	
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			IF maze of x + 1 and y + 1 = 1 AND
+			maze of x + 1 and y - 1 = 1 AND
+			maze of x + 1 and y = 1 AND
+			maze of x - 1 and y + 1 = 1 AND
+			maze of x - 1 and y - 1 = 1 AND
+			maze of x - 1 and y = 1 AND
+			maze of x and y + 1 = 1 AND
+			maze of x and y - 1 = 1 
+				SET numberOfWalledSpaces TO numberOfWalledSpaces + 1
+			END IF
+		END FOR
+	END FOR
+	SET walledSpacesFitness TO (maxNumberOfWalledSpaces - numberOfWalledSpaces) / maxNumberOfWalledSpaces
+	
+	
+	SET numberOfCorridors TO 0
+	SET maxNumberOfCorridors TO (((width - 2)) * ((width - 2) / 2) + ((width - 2) / 2 - 1))
+	SET corridorFitness TO 0
+	
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			IF x or y is 0 or width - 1
+				SKIP
+			END IF
+			IF maze of x and y = 0
+				SET sumOfNeighbours TO (maze of x - 1 and y) + (maze of x + 1 and y) + (maze of x and y - 1) + (maze of x and y + 1)
+				IF sumOfNeighbours = 2
+					SET numberOfCorridors TO numberOfCorridors + 1
+				END IF
+			END IF
+		END FOR
+	END FOR
+	
+	SET corridorFitness TO numberOfCorridors / maxNumberOfCorridors
+	
+	SET fitness score TO openSpacesFitness * openSpacesFitnessWeight + closedSpacesFitness * closedSpacesFitnessWeight + deadEndsFitness * deadEndsFitnessWeight + outerWallFitness * outerWallFitnessWeight + walledSpacesFitness * walledSpacesFitnessWeight + corridorFitness * corridorFitnessWeight
+	
+	
+	RETURN fitness
+END FUNCTION
+
+FUNCTION CheckNeighbours(parameters: currentCell, maze)
+	SET neighbours AS ARRAY
+	SET currentCell TO visited
+	SET neighboursToVisit TO non visited neighbours of currentCell
+	
+	FOR i:0 TO length of neighboursToVisit
+		SET neighbour TO neighboursToVisit of i
+		IF neighbour is not visited
+			ADD neighbour TO neighbours
+			neighbours ADD ARRAY CALL FUNCTION CheckNeighbours(with parameters: neighbour, maze)
+		END FOR
+	END FOR
+	
+	RETURN neighbours
+END FUNCTION
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
