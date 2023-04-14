@@ -91,11 +91,25 @@ namespace Assets
             }
         }
         public float CorridorFitnessWeight { get; set; } = 1;
+        
+        float _solvableFitness;
+        public float SolvableFitness
+        {
+            get
+            {
+                return _solvableFitness;
+            }
+            set
+            {
+                _solvableFitness = value;
+            }
+        }
+        public float SolvableFitnessWeight { get; set; } = 1;
 
         public float Score { 
             get 
             {
-                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness + WalledSpacesFitness;
+                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness + WalledSpacesFitness + CorridorFitness + (SolvableFitness * SolvableFitnessWeight);
             } 
         }
         public Builder builder { get; set; }
@@ -150,6 +164,8 @@ namespace Assets
             int maxNumOfCorridors = (((width - 2)) * ((height - 2) / 2) + ((height - 2) / 2 - 1));
             float corridorFitness = 0;
 
+            int solvable = 0;
+
             #region OUTER_WALL_FITNESS
             //Preverjamo zgornji in spodnji rob
             for (int i = 0; i < width; i++)
@@ -192,7 +208,7 @@ namespace Assets
                      GHI
                      */
                     //Gremo čez vsa polja ki niso na robu, ter preverimo ali ima celica zid okoli sebe in če ga nima je odprt prostor
-                    if (
+                    if (maze[i, j] == 0 &&          //Sredina
                         maze[i + 1, j + 1] == 0 &&  //I
                         maze[i + 1, j - 1] == 0 &&  //G
                         maze[i + 1, j] == 0 &&      //H 
@@ -323,7 +339,41 @@ namespace Assets
                 }
             }
 
-            deadEndsFitness = (float)numOfCorridors / maxNumOfCorridors;
+            corridorFitness = (float)numOfCorridors / maxNumOfCorridors;
+
+            #endregion
+
+            #region SOLVABLE
+            
+            Cell[,] newMazeToSolve = Crawler.GenerateMapToCrawl(maze);
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Cell currentCell = newMazeToSolve[y, x];
+                    if (currentCell.Value == 0 && currentCell.Visited == false)
+                    {
+                        if (y == 8 && x == 2)
+                        {
+
+                        }
+                        //Pridobimo vse celice ki so skupaj povezane (neprekinjena veriga sosedov) in če ni noben sosed na robu 
+                        //labirinta (smatram kot izhod) potem je ta postor zaprt
+                        currentCell.Visited = true;
+                        List<Cell> allNeighbours = Crawler.CheckNeighbours(ref currentCell, ref newMaze);
+                        if (allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).Any() && (currentCell.PosX == 0 || currentCell.PosX == width - 1 || currentCell.PosY == 0 || currentCell.PosY == height - 1))
+                        {
+                            var actualNeighbours = allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).ToList();
+                            List<Cell> exits = GetNeighbours(currentCell, actualNeighbours, width, height);
+                            if (exits.Any())
+                            {
+                                solvable = 1;
+                            }
+                        }
+                    }
+                }
+            }
 
             #endregion
 
@@ -333,7 +383,73 @@ namespace Assets
             fit.DeadEndsFitness = deadEndsFitness;
             fit.WalledSpacesFitness = walledSpacesFitness;
             fit.CorridorFitness = corridorFitness;
+            fit.SolvableFitness = solvable;
             return fit;
+        }
+
+        private static List<Cell> GetNeighbours(Cell borderCell, List<Cell> allBorderNeighbours, int width, int height)
+        {
+            //Pobrišem sosede podane celice, ki so tik zram nje oz neprekinjena veriga sosedov na robu in jih pobrišem ven iz seznama
+            //Če na koncu še ostane kakšna celica na robu, potem ta labirint je režljiv (ima vhod in izhod)
+            if (borderCell.PosX == 0 || borderCell.PosX == width - 1)
+            {
+                int tempYminus = borderCell.PosY - 1;
+                int tempYplus = borderCell.PosY + 1;
+                while (tempYminus > 0)
+                {
+                    Cell neighbour = allBorderNeighbours.Where(x => x.PosY == tempYminus-- && x.PosX == borderCell.PosX).FirstOrDefault();
+                    if (neighbour != null)
+                    {
+                        allBorderNeighbours.Remove(neighbour);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                while (tempYplus < width - 1)
+                {
+                    Cell neighbour = allBorderNeighbours.Where(x => x.PosY == tempYplus++ && x.PosX == borderCell.PosX).FirstOrDefault();
+                    if (neighbour != null)
+                    {
+                        allBorderNeighbours.Remove(neighbour);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            else if (borderCell.PosY == 0 || borderCell.PosY == width - 1)
+            {
+                int tempXminus = borderCell.PosX - 1;
+                int tempXplus = borderCell.PosX + 1;
+                while (tempXminus > 0)
+                {
+                    Cell neighbour = allBorderNeighbours.Where(x => x.PosX == tempXminus-- && x.PosY == borderCell.PosY).FirstOrDefault();
+                    if (neighbour != null)
+                    {
+                        allBorderNeighbours.Remove(neighbour);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                while (tempXplus < width - 1)
+                {
+                    Cell neighbour = allBorderNeighbours.Where(x => x.PosX == tempXplus++ && x.PosY == borderCell.PosY).FirstOrDefault();
+                    if (neighbour != null)
+                    {
+                        allBorderNeighbours.Remove(neighbour);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            return allBorderNeighbours;
         }
     }
 }

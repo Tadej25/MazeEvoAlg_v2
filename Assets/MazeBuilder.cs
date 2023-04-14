@@ -6,12 +6,15 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Threading;
+using System.IO;
 
 public class MazeBuilder : MonoBehaviour
 {
+    public string FolderPath = "C:/Users/Tadej/Desktop/FERI/MAGISTERIJ/Magisterjska naloga/MazeOutput";
     public GameObject black;
     public GameObject white;
 
+    public Camera camera;
     //Št generacij
     public int numOfGenerations = 50;
     //Št osebkov na generacijo
@@ -24,6 +27,8 @@ public class MazeBuilder : MonoBehaviour
     public Text G_Text;
     public Text I_Text;
     public Text SeedText;
+    
+    public Text TimeText;
 
     public Text OpenSpacesFitnessText;
     public Text ClosedSpacesFitnessText;
@@ -31,6 +36,15 @@ public class MazeBuilder : MonoBehaviour
     public Text OuterWallFitnessText;
     public Text WalledSpacesFitnessText;
     public Text CorridorFitnessText;
+    public Text SolvableFitnessText;
+    
+    public Text OpenSpacesFitnessWeightText;
+    public Text ClosedSpacesFitnessWeightText;
+    public Text DeadEndFitnessWeightText;
+    public Text OuterWallFitnessWeightText;
+    public Text WalledSpacesFitnessWeightText;
+    public Text CorridorFitnessWeightText;
+    public Text SolvableFitnessWeightText;
     
     //Dolžina seed-a
     [Min(9)]
@@ -49,14 +63,20 @@ public class MazeBuilder : MonoBehaviour
     public float WalledSpacesWeight = 1;
     [Range(0,1)]
     public float CorridorWeight = 1;
+    [Range(0,1)]
+    public int HasToBeSolvable = 1;
 
     public GameObject loading;
+    public Text GeneratedGenerationsText;
+    int currentGenerated = 0;
 
     List<GameObject> instantiatedGO;
 
     Dictionary<int, List<Fitness>> generations;
     List<int[,]> mazes;
     List<Fitness> result;
+
+    DateTime startTime;
 
     //Ročno ubijemo thread generacije
     public bool killThread = false;
@@ -73,6 +93,10 @@ public class MazeBuilder : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        startTime = DateTime.Now;
+        camera.orthographicSize = width / 2 + 1;
+        transform.position = new Vector3(this.transform.position.x - (width/2), this.transform.position.y - (width / 2), 0);
+
         if (SetSeed == false)
         {
             SeedLenght = (int)Math.Pow(width, 2)/8;
@@ -81,13 +105,21 @@ public class MazeBuilder : MonoBehaviour
         generations = new Dictionary<int, List<Fitness>>();
         mazes = new List<int[,]>();
 
+        OpenSpacesFitnessWeightText.text = "OSW: " + OpenSpacesWeight.ToString();
+        ClosedSpacesFitnessWeightText.text = "CSW: " + ClosedSpacesWeight.ToString();
+        DeadEndFitnessWeightText.text = "DEW: " + DeadEndWeight.ToString();
+        OuterWallFitnessWeightText.text = "OWW: " + OuterWallWeight.ToString();
+        WalledSpacesFitnessWeightText.text = "WSW: " + WalledSpacesWeight.ToString();
+        CorridorFitnessWeightText.text = "CW: " + CorridorWeight.ToString();
+        SolvableFitnessWeightText.text = "SW: " + HasToBeSolvable.ToString();
+
         //Generacijo damo v svoj thread, da ne ustavi programa med generiranjem
         t = new Thread(delegate ()
         {
             GenerateMaze();
         });
         t.Start();
-
+        //ScreenCapture.CaptureScreenshot(Application.dataPath + "/screenshots/" + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss") + ".png");
     }
 
     void GenerateMaze()
@@ -96,7 +128,7 @@ public class MazeBuilder : MonoBehaviour
 
         for (int gen = 1; gen <= numOfGenerations; gen++)
         {
-            Debug.Log("CURRENT GENERATION: " + gen);
+            //Debug.Log("CURRENT GENERATION: " + gen);
             if (result == null)
                 result = GenerateInduviduals(gen, width, r);
             else
@@ -202,6 +234,9 @@ public class MazeBuilder : MonoBehaviour
 
                 loading.SetActive(false);
                 SliderValueChanged();
+
+                TimeSpan duration = DateTime.Now.Subtract(startTime);
+                TimeText.text = duration.ToString("mm':'ss");
             });
         }
     }
@@ -257,6 +292,7 @@ public class MazeBuilder : MonoBehaviour
             res += letter;
         }
         return res;
+        //return "ý";
     }
 
     void SliderValueChanged()
@@ -275,7 +311,8 @@ public class MazeBuilder : MonoBehaviour
         WalledSpacesFitnessText.text = "WS: " + generations[generation][iteration].WalledSpacesFitness.ToString();
         DeadEndFitnessText.text = "DE: " + generations[generation][iteration].DeadEndsFitness.ToString();
         OuterWallFitnessText.text = "OW: " + generations[generation][iteration].OuterWallFitness.ToString();
-        CorridorFitnessText.text = "Cr: " + generations[generation][iteration].CorridorFitness.ToString();
+        CorridorFitnessText.text = "CR: " + generations[generation][iteration].CorridorFitness.ToString();
+        SolvableFitnessText.text = "S: " + generations[generation][iteration].SolvableFitness.ToString();
     }
 
     void DrawMaze(int[,] maze)
@@ -289,17 +326,20 @@ public class MazeBuilder : MonoBehaviour
         }
         instantiatedGO.Clear();
 
+        int screenX = (int)this.transform.position.x;
+        int screenY = (int)this.transform.position.y;
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
                 if (maze[y,x] == 1)
                 {
-                    instantiatedGO.Add(Instantiate(black, new Vector3(x, y, 0), Quaternion.identity));
+                    instantiatedGO.Add(Instantiate(black, new Vector3(screenX + x, screenY + y, 0), Quaternion.identity));
                 }
                 else
                 {
-                    instantiatedGO.Add(Instantiate(white, new Vector3(x, y, 0), Quaternion.identity));
+                    instantiatedGO.Add(Instantiate(white, new Vector3(screenX + x, screenY + y, 0), Quaternion.identity));
                 }
             }
         }
@@ -323,8 +363,98 @@ public class MazeBuilder : MonoBehaviour
         {
             t.Abort();
         }
+        if (currentGenerated < generations.Count)
+        {
+            GeneratedGenerationsText.text = string.Format("{0}/{1}", generations.Count + 1, numOfGenerations);
+            currentGenerated = generations.Count;
+        }
     }
 
+    public void ButtonSaveClick()
+    {
+        string folderPath = FolderPath;
+        DateTime now = DateTime.Now;
+        string folderName = "/output/" + now.ToString("yyyyMMddhhmmss");
+        Directory.CreateDirectory(folderPath + folderName);
+        t = new Thread(delegate ()
+        {
+            SaveAll(folderPath, folderName);
+        });
+        t.Start();
+    }
+    public void SaveAll(string folderPath, string folderName)
+    {
+        List<string> csvLines = new List<string>();
+        csvLines.Add("TIME;"+TimeText.text);
+        /*fit.OpenSpacesFitness = openSpacesFitness;
+            fit.OuterWallFitness = outerWallFitness;
+            fit.ClosedSpacesFitness = closedSpacesFitness;
+            fit.DeadEndsFitness = deadEndsFitness;
+            fit.WalledSpacesFitness = walledSpacesFitness;
+            fit.CorridorFitness = corridorFitness;
+            fit.SolvableFitness = solvable;*/
+        csvLines.Add("OPEN SPACES FITNESS WEIGHT;OUTER WALL FITNESS WEIGHT;CLOSED SPACES FITNESS WEIGHT;DEAD END FITNESS WEIGHT;WALLED SPACES FITNESS WEIGHT;CORRIDOR FITNESS WEIGHT;SOLVABLE WEIGHT");
+        csvLines.Add(string.Format("{0};{1};{2};{3};{4};{5};{6}",OpenSpacesWeight, OuterWallWeight, ClosedSpacesWeight, DeadEndWeight,WalledSpacesWeight, CorridorWeight, HasToBeSolvable));
+        csvLines.Add("GENERATION;OPEN SPACES FITNESS;OUTER WALL FITNESS;CLOSED SPACES FITNESS;DEAD END FITNESS;WALLED SPACES FITNESS;CORRIDOR FITNESS;SOLVABLE;SCORE;SEED;IMAGE NAME");
+        /*
+        GENERATION;
+        OPEN SPACES FITNESS;
+        OUTER WALL FITNESS;
+        CLOSED SPACES FITNESS;
+        DEAD END FITNESS;
+        WALLED SPACES FITNESS;
+        CORRIDOR FITNESS;
+        SOLVABLE;
+        SCORE;
+        SEED;
+        IMAGE NAME
+         */
+        
+        
+        foreach (var generation in generations)
+        {
+            int index = 1;
+            foreach (var iteration in generation.Value)
+            {
+                Debug.Log(string.Format("Saving GEN: {0}, ITE: {1}", generation.Key, index));
+                string imgName = string.Format("GEN{0}_{1}.png",generation.Key, index++);
+                csvLines.Add(string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10}", 
+                    generation.Key, 
+                    iteration.OpenSpacesFitness,
+                    iteration.OuterWallFitness,
+                    iteration.ClosedSpacesFitness,
+                    iteration.DeadEndsFitness,
+                    iteration.WalledSpacesFitness,
+                    iteration.CorridorFitness,
+                    iteration.SolvableFitness,
+                    iteration.Score,
+                    iteration.builder.StringSeed,
+                    imgName));
+                ///TODO: change slider value
+
+                lock (_lock)
+                {
+                    // Add an action that requires the main thread
+                    _mainThreadActions.Enqueue(() =>
+                    {
+                        G_Slider.value = generation.Key;
+                        I_Slider.value = index;
+                        Directory.CreateDirectory(folderPath + folderName + "/screenshots");
+                        string path = folderPath + folderName + "/screenshots/" + imgName;
+                        ScreenCapture.CaptureScreenshot(path);
+                    });
+                }
+                while (G_Slider.value != generation.Key || I_Slider.value != index)
+                {
+                    if (I_Slider.value == 99 && G_Slider.value == generation.Key)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        File.WriteAllLines(folderPath + folderName + "/Data.csv", csvLines);
+    }
     void OnApplicationQuit()
     {
         try
