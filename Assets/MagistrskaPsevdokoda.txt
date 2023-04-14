@@ -258,8 +258,32 @@ FUNCTION CheckFitness(parameters: maze)
 	END FOR
 	
 	SET corridorFitness TO numberOfCorridors / maxNumberOfCorridors
+
+	SET solvable TO 0
+
+	FOR x:1 TO width - 1
+		FOR y:1 TO width - 1
+			SET currentCell TO maze of x and y
+			IF currentCell = 0 AND currentCell was not visited
+				SET currentCell to visited
+				SET neighbours TO CALL FUNCTION CheckNeighbours(with parameters: currentCell, maze)
+				IF any neighbour that is on the edge of the maze AND currentCell is on the edge of the maze
+					SET actualNeighbours TO allNeighbours that are on the edge of the maze
+					SET exits TO CALL FUNCTION GetNeighbours(with parameters: currentCell, actualNeighbours, width)
+					IF there are any elements in ARRAY exits
+						SET solvable TO 1
+					END IF
+				END IF
+			END IF
+		END FOR
+	END FOR
+	SET closedSpacesPow TO numberOfClosedSpaces^2
+	IF closedSpacesPow > maxNumberOfClosedSpaces
+		SET closedSpacesPow TO maxNumberOfClosedSpaces
+	END IF
+	SET closedSpacesFitness TO Absolute(maxNumberOfClosedSpaces - closedSpacesPow) / maxNumberOfClosedSpaces
 	
-	SET fitness score TO openSpacesFitness * openSpacesFitnessWeight + closedSpacesFitness * closedSpacesFitnessWeight + deadEndsFitness * deadEndsFitnessWeight + outerWallFitness * outerWallFitnessWeight + walledSpacesFitness * walledSpacesFitnessWeight + corridorFitness * corridorFitnessWeight
+	SET fitness score TO openSpacesFitness * openSpacesFitnessWeight + closedSpacesFitness * closedSpacesFitnessWeight + deadEndsFitness * deadEndsFitnessWeight + outerWallFitness * outerWallFitnessWeight + walledSpacesFitness * walledSpacesFitnessWeight + corridorFitness * corridorFitnessWeight + solvable * solvableWeight
 	
 	
 	RETURN fitness
@@ -279,6 +303,54 @@ FUNCTION CheckNeighbours(parameters: currentCell, maze)
 	END FOR
 	
 	RETURN neighbours
+END FUNCTION
+
+FUNCTION GetNeighbours (parameters: borderCell, allBorderNeighbours, width)
+	IF borderCell is on X border
+		SET cordYminus TO Y coordinate of borderCell - 1
+		SET cordYplus TO Y coordinate of borderCell + 1
+
+		WHILE coordYmins > 0
+			SET neighbour TO allBorderNeighbours of coordYminus and borderCell coordinate X
+			IF neighbour IS NOT EMPTY
+				REMOVE neighbour FROM allBorderNeighbours
+			ELSE
+				STOP WHILE
+			END IF
+		END WHILE
+
+		WHILE coordYplus < width - 1
+			SET neighbour TO allBorderNeighbours of coordYplus and borderCell coordinate X
+			IF neighbour IS NOT EMPTY
+				REMOVE neighbour FROM allBorderNeighbours
+			ELSE
+				STOP WHILE
+			END IF
+		END WHILE
+	END IF
+	IF borderCell is on Y border
+		SET cordXminus TO X coordinate of borderCell - 1
+		SET cordXplus TO X coordinate of borderCell + 1
+
+		WHILE cordXminus > 0
+			SET neighbour TO allBorderNeighbours of cordXminus and borderCell coordinate Y
+			IF neighbour IS NOT EMPTY
+				REMOVE neighbour FROM allBorderNeighbours
+			ELSE
+				STOP WHILE
+			END IF
+		END WHILE
+
+		WHILE cordXplus < width - 1
+			SET neighbour TO allBorderNeighbours of cordXplus and borderCell coordinate Y
+			IF neighbour IS NOT EMPTY
+				REMOVE neighbour FROM allBorderNeighbours
+			ELSE
+				STOP WHILE
+			END IF
+		END WHILE
+	END IF
+	RETURN allBorderNeighbours
 END FUNCTION
 
 

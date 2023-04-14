@@ -354,10 +354,6 @@ namespace Assets
                     Cell currentCell = newMazeToSolve[y, x];
                     if (currentCell.Value == 0 && currentCell.Visited == false)
                     {
-                        if (y == 8 && x == 2)
-                        {
-
-                        }
                         //Pridobimo vse celice ki so skupaj povezane (neprekinjena veriga sosedov) in če ni noben sosed na robu 
                         //labirinta (smatram kot izhod) potem je ta postor zaprt
                         currentCell.Visited = true;
@@ -420,7 +416,7 @@ namespace Assets
                     }
                 }
             }
-            else if (borderCell.PosY == 0 || borderCell.PosY == width - 1)
+            if (borderCell.PosY == 0 || borderCell.PosY == width - 1)
             {
                 int tempXminus = borderCell.PosX - 1;
                 int tempXplus = borderCell.PosX + 1;
