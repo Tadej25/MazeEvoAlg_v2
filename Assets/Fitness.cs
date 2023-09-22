@@ -126,7 +126,7 @@ namespace Assets
             float openSpacesFitness = 0;
 
             int numOfOuterWalls = 0;
-            int maxNumOfOuterWalls = width * 2 + (height - 2) * 2;
+            int maxNumOfOuterWalls = (width * 2 + (height - 2) * 2) - 2;
             float outerWallFitness = 0;
 
             //Izračunam max število zaprtih prostorov (načeloma če bi bilo polje šahovnica je najslabši primer)
@@ -137,7 +137,7 @@ namespace Assets
                 ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
                 ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
              */
-            float maxNumOfClosedSpaces = (float)((float)(height - 2) * (float)(width - 2) / 2f);
+            float maxNumOfClosedSpaceCells = (float)((float)(height - 2) * (float)(width - 2));
             int numOfClosedSpaces = 0;
             float closedSpacesFitness = 0;
 
@@ -191,7 +191,7 @@ namespace Assets
                 }
             }
             outerWallFitness = (float)numOfOuterWalls / (float)maxNumOfOuterWalls;
-            if (outerWallFitness == 1)
+            if (outerWallFitness > 1)
             {
                 outerWallFitness = 0;
             }
@@ -245,7 +245,7 @@ namespace Assets
                         allNeighbours.Add(currentCell);
                         if (!allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).Any())
                         {
-                            numOfClosedSpaces++;
+                            numOfClosedSpaces+= allNeighbours.Count;
                         }
                     }
                 }
@@ -254,11 +254,11 @@ namespace Assets
             //Ker so lahko zaprti prostori veliki in s tem zmanjšajo število zaprtih prostorov sem se odločil, da število zaprtih prostorov kvadriram
             //in če je kvadrat večji od max števila zpartih prostorov smatram da je št. zaprtih prostorov enako max številu
             float numOfClosedSpacesPow = (float)Math.Pow(numOfClosedSpaces, 2);
-            float tempNumClosedSpaces = numOfClosedSpacesPow > maxNumOfClosedSpaces ? maxNumOfClosedSpaces : numOfClosedSpacesPow;
+            float tempNumClosedSpaces = numOfClosedSpacesPow > maxNumOfClosedSpaceCells ? maxNumOfClosedSpaceCells : numOfClosedSpacesPow;
 
             //Za izračun fitnessa, izračunam kako daleč stran je število zaprtih prostorov od 0 zaprtih prostorov in bližje kot
             //je NULI boljše je
-            closedSpacesFitness = ((float)(Math.Abs(maxNumOfClosedSpaces - Math.Abs(0 - tempNumClosedSpaces)) / maxNumOfClosedSpaces));
+            closedSpacesFitness = 1 - (numOfClosedSpaces / maxNumOfClosedSpaceCells);//((float)(Math.Abs(maxNumOfClosedSpaceCells - Math.Abs(0 - tempNumClosedSpaces)) / maxNumOfClosedSpaceCells));
             #endregion
 
             #region DEAD_END_FITNESS
@@ -372,6 +372,8 @@ namespace Assets
             }
 
             #endregion
+
+            ///TODO: Dodaj še fitness kak dolga je pot od vhoda do cilja, daljša je boljša je
 
             fit.OpenSpacesFitness = openSpacesFitness;
             fit.OuterWallFitness = outerWallFitness;

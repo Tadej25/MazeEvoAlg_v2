@@ -292,7 +292,6 @@ public class MazeBuilder : MonoBehaviour
             res += letter;
         }
         return res;
-        //return "ý";
     }
 
     void SliderValueChanged()
@@ -368,6 +367,26 @@ public class MazeBuilder : MonoBehaviour
             GeneratedGenerationsText.text = string.Format("{0}/{1}", generations.Count + 1, numOfGenerations);
             currentGenerated = generations.Count;
         }
+
+        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        {
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                G_Slider.value += 1;
+            }
+            else if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                G_Slider.value -= 1;
+            }
+        }
+        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            I_Slider.value += 1;
+        }
+        else if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            I_Slider.value += 1;
+        }
     }
 
     public void ButtonSaveClick()
@@ -411,11 +430,14 @@ public class MazeBuilder : MonoBehaviour
          */
         
         
+        Dictionary<int, float> genSums = new Dictionary<int, float>();
         foreach (var generation in generations)
         {
             int index = 1;
+            genSums.Add(generation.Key, 0);
             foreach (var iteration in generation.Value)
             {
+                genSums[generation.Key] += iteration.Score;
                 Debug.Log(string.Format("Saving GEN: {0}, ITE: {1}", generation.Key, index));
                 string imgName = string.Format("GEN{0}_{1}.png",generation.Key, index++);
                 csvLines.Add(string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10}", 
@@ -432,26 +454,35 @@ public class MazeBuilder : MonoBehaviour
                     imgName));
                 ///TODO: change slider value
 
-                lock (_lock)
-                {
-                    // Add an action that requires the main thread
-                    _mainThreadActions.Enqueue(() =>
-                    {
-                        G_Slider.value = generation.Key;
-                        I_Slider.value = index;
-                        Directory.CreateDirectory(folderPath + folderName + "/screenshots");
-                        string path = folderPath + folderName + "/screenshots/" + imgName;
-                        ScreenCapture.CaptureScreenshot(path);
-                    });
-                }
-                while (G_Slider.value != generation.Key || I_Slider.value != index)
-                {
-                    if (I_Slider.value == 99 && G_Slider.value == generation.Key)
-                    {
-                        break;
-                    }
-                }
+                //lock (_lock)
+                //{
+                //    // Add an action that requires the main thread
+                //    _mainThreadActions.Enqueue(() =>
+                //    {
+                //        G_Slider.value = generation.Key;
+                //        I_Slider.value = index;
+                //        Directory.CreateDirectory(folderPath + folderName + "/screenshots");
+                //        string path = folderPath + folderName + "/screenshots/" + imgName;
+                //        ScreenCapture.CaptureScreenshot(path);
+                //    });
+                //}
+                //while (G_Slider.value != generation.Key || I_Slider.value != index)
+                //{
+                //    if (I_Slider.value == 99 && G_Slider.value == generation.Key)
+                //    {
+                //        break;
+                //    }
+                //}
             }
+        }
+        csvLines.Add("");
+        csvLines.Add("GENERATION;SUM;AVERAGE;MEDIAN");
+        foreach (var generation in generations)
+        {
+            float sum = generation.Value.Sum(x => x.Score);
+            float average = generation.Value.Average(x => x.Score);
+            float median = generation.Value.OrderBy(x => x.Score).ToList()[(generation.Value.Count-1)/2].Score;
+            csvLines.Add(string.Format("{0};{1};{2};{3}",generation.Key, sum, average, median));
         }
         File.WriteAllLines(folderPath + folderName + "/Data.csv", csvLines);
     }

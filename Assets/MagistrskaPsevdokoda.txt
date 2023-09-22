@@ -190,11 +190,8 @@ FUNCTION CheckFitness(parameters: maze)
 			END IF
 		END FOR
 	END FOR
-	SET closedSpacesPow TO numberOfClosedSpaces^2
-	IF closedSpacesPow > maxNumberOfClosedSpaces
-		SET closedSpacesPow TO maxNumberOfClosedSpaces
-	END IF
-	SET closedSpacesFitness TO Absolute(maxNumberOfClosedSpaces - closedSpacesPow) / maxNumberOfClosedSpaces
+	
+	SET closedSpacesFitness TO 1 - (numberOfClosedSpaces / maxNumberOfClosedSpaces)
 	
 	
 	SET maxNumberOfDeadEnds TO (width - 2) * (width - 2) / 2

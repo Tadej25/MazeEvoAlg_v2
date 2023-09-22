@@ -117,6 +117,51 @@ namespace Assets
                     childStringSeed += letter;
                 }
             }
+            /*
+             int chance = parent1.r.Next(1, 101);
+            if (chance < 51)
+            {
+                childStringSeed += parent1.StringSeed.Substring(0, parent1.StringSeed.Length/2);
+                childStringSeed += parent2.StringSeed.Substring(parent2.StringSeed.Length / 2);
+            }
+            else
+            {
+                childStringSeed += parent2.StringSeed.Substring(0, parent2.StringSeed.Length / 2);
+                childStringSeed += parent1.StringSeed.Substring(parent1.StringSeed.Length / 2);
+            }
+            for (int i = 0; i < childStringSeed.Length; i++)
+            {
+                chance = parent1.r.Next(1, 101);
+                if (chance > 94)
+                {
+                    char letter = 'a';
+                    switch (parent1.r.Next(0, 3))
+                    {
+                        case 0: letter = (char)parent1.r.Next(48, 58); break;
+                        case 1: letter = (char)parent1.r.Next(65, 91); break;
+                        case 2: letter = (char)parent1.r.Next(97, 123); break;
+                    }
+                    StringBuilder sb = new StringBuilder(childStringSeed);
+                    sb[i] = letter;
+                    childStringSeed = sb.ToString();
+                }
+                //else if (chance < 96)
+                //{
+                //    childStringSeed += parent2.StringSeed[i];
+                //}
+                //else
+                //{
+                //    char letter = 'a';
+                //    switch (parent1.r.Next(0, 3))
+                //    {
+                //        case 0: letter = (char)parent1.r.Next(48, 58); break;
+                //        case 1: letter = (char)parent1.r.Next(65, 91); break;
+                //        case 2: letter = (char)parent1.r.Next(97, 123); break;
+                //    }
+                //    childStringSeed += letter;
+                //}
+            }
+             */
             return childStringSeed;
         }
         public static int ComputeSimilarity(string s, string t)

@@ -1052,11 +1052,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b47e56b9e1b7de46a18f886d8acafef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  FolderPath: C:/Users/Tadej/Desktop/FERI/MAGISTERIJ/Magisterjska naloga/MazeOutput
   black: {fileID: 5747489027817021560, guid: 8657243ab7e3df341b445c366f3a0c85, type: 3}
   white: {fileID: 4237805076083837684, guid: 1b55dcdd02854f34c8686e5383861f13, type: 3}
   camera: {fileID: 519420031}
-  numOfGenerations: 100
-  numOfIterations: 100
+  numOfGenerations: 1000
+  numOfIterations: 1000
   width: 10
   G_Slider: {fileID: 1994363514}
   I_Slider: {fileID: 444540078}
@@ -1079,12 +1080,12 @@ MonoBehaviour:
   CorridorFitnessWeightText: {fileID: 1936858547}
   SolvableFitnessWeightText: {fileID: 375981535}
   SeedLenght: 50
-  OpenSpacesWeight: 0.1
-  ClosedSpacesWeight: 0.1
-  DeadEndWeight: 0.79
+  OpenSpacesWeight: 0.13
+  ClosedSpacesWeight: 0.62
+  DeadEndWeight: 0.2
   OuterWallWeight: 1
-  WalledSpacesWeight: 0.1
-  CorridorWeight: 0.76
+  WalledSpacesWeight: 0.25
+  CorridorWeight: 0.82
   HasToBeSolvable: 1
   loading: {fileID: 162885003}
   GeneratedGenerationsText: {fileID: 198647899}
@@ -1360,7 +1361,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 371849866}
         m_TargetAssemblyTypeName: MazeBuilder, Assembly-CSharp
-        m_MethodName: SaveAll
+        m_MethodName: ButtonSaveClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
