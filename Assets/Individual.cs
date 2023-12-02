@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Assets
 {
@@ -11,7 +7,22 @@ namespace Assets
         public int[,] Maze { get; set; }
         public Fitness2 _Fitness { get; set; }
         public string Name { get; set; }
-        public string StringMaze { get; set; }
+        private string stringMaze;
+        public string StringMaze 
+        {
+            get 
+            {
+                if (string.IsNullOrEmpty(stringMaze))
+                {
+                    stringMaze = GetStringMaze(Maze);
+                }
+                return stringMaze;
+            } 
+            set
+            {
+                stringMaze = value;
+            } 
+        }
 
         public Random r;
 

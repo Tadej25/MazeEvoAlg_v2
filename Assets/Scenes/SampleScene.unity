@@ -1204,7 +1204,7 @@ MonoBehaviour:
   ShortnessWeight: 24
   DeadendWeight: 67
   LoopWeight: 25
-  pureRoulleteWheel: 1
+  pureRoulleteWheel: 0
   pureElite: 1
   wall: {fileID: 5747489027817021560, guid: 8657243ab7e3df341b445c366f3a0c85, type: 3}
   path: {fileID: 4237805076083837684, guid: 1b55dcdd02854f34c8686e5383861f13, type: 3}
@@ -1217,7 +1217,7 @@ MonoBehaviour:
   SeedText: {fileID: 480666856}
   loading: {fileID: 162885003}
   GeneratedGenerationsText: {fileID: 198647899}
-  ding: {fileID: 791195957}
+  PathToSaveData: C:/Users/Tadej/Desktop/FERI/MAGISTERIJ/Magisterjska naloga/MazeOutput
   KillThread: 0
 --- !u!1 &375981533
 GameObject:
@@ -1473,9 +1473,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 371849866}
-        m_TargetAssemblyTypeName: MazeBuilder, Assembly-CSharp
-        m_MethodName: ButtonSaveClick
+      - m_Target: {fileID: 371849868}
+        m_TargetAssemblyTypeName: Manager, Assembly-CSharp
+        m_MethodName: SaveDataToFile
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

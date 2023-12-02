@@ -1,9 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
 
 namespace Assets
 {
@@ -37,15 +33,15 @@ namespace Assets
         public decimal LoopScore { get { return loopScore * LoopWeight; } set { loopScore = value; } }
 
         private decimal solvableScore = 1;
-        public decimal SolvableScore { get { return solvableScore * SolvableWeight; } set { solvableScore = value; } }
-        public decimal SolvableScore2 { get { return (BorderScore + ConnectivityScore + DeadendScore + LoopScore + QualityScore + ShortnessScore) * SolvableWeight2; } set { solvableScore = value; } }
+        public decimal SolvableScoreOLD { get { return solvableScore * SolvableWeight; } set { solvableScore = value; } }
+        public decimal SolvableScore { get { return (BorderScore + ConnectivityScore + DeadendScore + LoopScore + QualityScore + ShortnessScore) * SolvableWeight2; } set { solvableScore = value; } }
 
         public decimal Score{ 
             get 
             { 
                 return 
                     BorderScore 
-                    + SolvableScore2
+                    + SolvableScore
                     + ConnectivityScore 
                     + DeadendScore 
                     + LoopScore 
@@ -61,7 +57,7 @@ namespace Assets
             {
                 return string.Format("BorderScore: {0}; SolvableScore: {1}; ConnectivityScore: {2}; DeadendScore: {3}; LoopScore: {4}; QualityScore: {5}; ShortnessScore: {6}; Score: {7}",
                         BorderScore
-                        , SolvableScore2
+                        , SolvableScore
                         , ConnectivityScore
                         , DeadendScore
                         , LoopScore
@@ -95,7 +91,7 @@ namespace Assets
                 BorderScore = 0;
             }
             QualityScore = CheckMazeQuality(individual.Maze);
-            SolvableScore = CheckMazeSolvability(individual.Maze);
+            //SolvableScore = CheckMazeSolvability(individual.Maze);
             SolvableWeight2 = CheckMazeSolvability(individual.Maze);
             ConnectivityScore = -1 * CheckMazeConnectivity(individual.Maze);
             ShortnessScore = -1 * CheckMazeShortness(individual.Maze);
@@ -109,7 +105,7 @@ namespace Assets
             int Size = maze.GetLength(0);
             string sMaze = Individual.GetStringMaze(maze);
             int[,] tempMaze = maze.Clone() as int[,];
-            if (dfsInner(1, 1, tempMaze) && maze[1, 0] == 0 && maze[Size - 2, Size - 1] == 0)
+            if (DepthFirstSerachInner(1, 1, tempMaze) && maze[1, 0] == 0 && maze[Size - 2, Size - 1] == 0)
             {
                 return 1;
             }
@@ -130,7 +126,7 @@ namespace Assets
                     if (tempMaze[y,x] == 0)
                     {
                         componentCount++;
-                        dfs(x, y, tempMaze);
+                        DepthFirstSearch(x, y, tempMaze);
                     }
                 }
             }
@@ -234,7 +230,7 @@ namespace Assets
                         pq.Enqueue(new PriorityElement(cost + 1, nr, nc));
                 }
             }
-            return 1;
+            return 10000;
 
         }
         
@@ -274,7 +270,7 @@ namespace Assets
             return new decimal[] { deadEnds, loops };
         }
 
-        private bool dfs(int x, int y, int[,] maze, int mark = -1)
+        private bool DepthFirstSearch(int x, int y, int[,] maze, int mark = -1)
         {
             int Size = maze.GetLength(0);
             if (x < 0 || y < 0 || x >= Size || y >= Size || maze[y, x] == -1 || maze[y, x] == 1)
@@ -289,17 +285,17 @@ namespace Assets
                 return true;
             }
 
-            if (dfs(x + 1, y, maze, mark) ||
-                dfs(x - 1, y, maze, mark) ||
-                dfs(x, y + 1, maze, mark) ||
-                dfs(x, y - 1, maze, mark))
+            if (DepthFirstSearch(x + 1, y, maze, mark) ||
+                DepthFirstSearch(x - 1, y, maze, mark) ||
+                DepthFirstSearch(x, y + 1, maze, mark) ||
+                DepthFirstSearch(x, y - 1, maze, mark))
             {
                 return true;
             }
             return false;
         }
 
-        private bool dfsInner(int x, int y, int[,] maze, int mark = -1)
+        private bool DepthFirstSerachInner(int x, int y, int[,] maze, int mark = -1)
         {
             int Size = maze.GetLength(0);
             if (x <= 0 || y <= 0 || x >= Size - 1 || y >= Size - 1 || maze[y, x] == -1 || maze[y, x] == 1) 
@@ -314,10 +310,10 @@ namespace Assets
                 return true;
             }
 
-            if (dfsInner(x + 1, y, maze, mark) ||
-                dfsInner(x - 1, y, maze, mark) ||
-                dfsInner(x, y + 1, maze, mark) ||
-                dfsInner(x, y - 1, maze, mark))
+            if (DepthFirstSerachInner(x + 1, y, maze, mark) ||
+                DepthFirstSerachInner(x - 1, y, maze, mark) ||
+                DepthFirstSerachInner(x, y + 1, maze, mark) ||
+                DepthFirstSerachInner(x, y - 1, maze, mark))
             {
                 return true;
             }

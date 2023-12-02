@@ -2,6 +2,7 @@ using Assets;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using TMPro;
@@ -51,12 +52,15 @@ public class Manager : MonoBehaviour
     public GameObject loading;
     public Text GeneratedGenerationsText;
 
-    public AudioSource ding;
+    public string PathToSaveData = "C:/Users/Tadej/Desktop/FERI/MAGISTERIJ/Magisterjska naloga/MazeOutput";
+
+    //public AudioSource ding;
 
     DateTime startTime;
     DateTime endTime;
 
     Thread t;
+    List<Thread> allThreads = new List<Thread>();
 
     Queue<Individual> IndividualsToDraw = new Queue<Individual>();
     List<Generation> Generations = new List<Generation>();
@@ -92,7 +96,6 @@ public class Manager : MonoBehaviour
                 _mainThreadActions.Enqueue(() =>
                 {
                     loading.SetActive(false);
-                    ding.Play();
                     TimeSpan duration = DateTime.Now.Subtract(startTime);
                     TimeText.text = duration.ToString("mm':'ss");
                 });
@@ -108,8 +111,13 @@ public class Manager : MonoBehaviour
         {
             t.Abort();
         }
+        if (t.IsAlive)
+        {
+            TimeSpan duration = DateTime.Now.Subtract(startTime);
+            TimeText.text = duration.ToString("mm':'ss");
+        }
         GeneratedGenerationsText.text = string.Format("{0}/{1}", Generations.Count + 1, NumberOfGeneration);
-        
+
         if (Input.GetKey(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.LeftControl))
         {
             if ((Input.GetKey(KeyCode.LeftShift)) || (Input.GetKey(KeyCode.RightShift)))
@@ -204,7 +212,7 @@ public class Manager : MonoBehaviour
                     GenerateByElitist(g);
                 //GenerateByElitistInThreads(g, 10);
             }
-            
+
             Generations.Add(g);
         }
     }
@@ -216,7 +224,7 @@ public class Manager : MonoBehaviour
         List<Individual> topFiftyIndividuals = new List<Individual>(previousGeneration.Individuals.OrderByDescending(x => x.GetScore()).ToList());
         topFiftyIndividuals = new List<Individual>(topFiftyIndividuals.Take(50));
 
-        List<Individual> solvablseIndividuals = previousGeneration.Individuals.Where(x => x._Fitness.SolvableScore2 > 1).ToList();
+        List<Individual> solvablseIndividuals = previousGeneration.Individuals.Where(x => x._Fitness.SolvableScore > 1).ToList();
 
         Generation solvableG = new Generation("temporarySolvable");
         Generation topFiftyG = new Generation("temporaryTopFifty");
@@ -261,8 +269,15 @@ public class Manager : MonoBehaviour
             Individual baby = new Individual(mama, papa, name);
             baby.Grade((decimal)BorderWeight, (decimal)QualityWeight, (decimal)ConnectivityWeight, (decimal)ShortnessWeight, (decimal)DeadendWeight, (decimal)LoopWeight);
 
-            g.Individuals.Add(baby);
-            IndividualsToDraw.Enqueue(baby);
+            try
+            {
+                g.Individuals.Add(baby);
+                IndividualsToDraw.Enqueue(baby);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("GenerateByElitist, adding to individuals and queue" + e.Message);
+            }
         }
     }
     private void GenerateByElitistInThreads(Generation g, int numOfThreads = 3)
@@ -272,7 +287,7 @@ public class Manager : MonoBehaviour
         List<Individual> topFiftyIndividuals = new List<Individual>(previousGeneration.Individuals.OrderByDescending(x => x.GetScore()).ToList());
         topFiftyIndividuals = new List<Individual>(topFiftyIndividuals.Take(50));
 
-        List<Individual> solvablseIndividuals = previousGeneration.Individuals.Where(x => x._Fitness.SolvableScore2 > 1).ToList();
+        List<Individual> solvablseIndividuals = previousGeneration.Individuals.Where(x => x._Fitness.SolvableScore > 1).ToList();
 
         Generation solvableG = new Generation("temporarySolvable");
         Generation topFiftyG = new Generation("temporaryTopFifty");
@@ -332,12 +347,13 @@ public class Manager : MonoBehaviour
             threadsForBabies.Add(th);
             th.Start();
         }
+        allThreads.Concat(threadsForBabies);
 
         while (threadsForBabies.Any(x => x.IsAlive))
         {
 
         }
-        
+
     }
 
     private void GeneratedGenerationsByRoullete(Generation g, Generation previousGeneration = null)
@@ -393,25 +409,33 @@ public class Manager : MonoBehaviour
                 {
                     individual = new Individual(MazeSize, name, r);
                     individual.Grade((decimal)BorderWeight, (decimal)QualityWeight, (decimal)ConnectivityWeight, (decimal)ShortnessWeight, (decimal)DeadendWeight, (decimal)LoopWeight);
+                    string asdasda = individual._Fitness.SolvableScore.ToString();
                     if (individual._Fitness.SolvableScore > 0)
                     {
                         noSolvableIndividuals = false;
                         g.Individuals.Add(individual);
                         IndividualsToDraw.Enqueue(individual);
                         numSolvableIndividuals++;
+                        Debug.Log(string.Format("solvable generated ({0})", numSolvableIndividuals));
                     }
                 } while (numSolvableIndividuals < NumberOfIndividualsPerGeneration / 10);
             });
             threadsForSolvableMaze.Add(th);
             th.Start();
         }
+        allThreads.Concat(threadsForSolvableMaze);
 
         DateTime startOfWait = DateTime.Now;
-        while (threadsForSolvableMaze.Any(x=>x.IsAlive) && DateTime.Now.Subtract(startOfWait).TotalSeconds < 61)
+        while (threadsForSolvableMaze.Any(x => x.IsAlive) && DateTime.Now.Subtract(startOfWait).TotalSeconds < 61)
         {
 
         }
-        
+
+        foreach (var thread in threadsForSolvableMaze)
+        {
+            if (thread.IsAlive)
+                thread.Abort();
+        }
 
         while (g.Individuals.Count < 100)
         {
@@ -422,71 +446,6 @@ public class Manager : MonoBehaviour
             IndividualsToDraw.Enqueue(individual);
         }
 
-    }
-
-    private void TestThreadingGeneration(ref Queue<Individual> babies, List<Individual> orderdIndividualsByScore, int generationIndex)
-    {
-        int attempt = 1000;
-        while (babies.Count < NumberOfIndividualsPerGeneration && attempt > 0)
-        {
-            attempt--;
-            string name = String.Format("G{0}I{1}", generationIndex, babies.Count + 1);
-            decimal[] ComulativeFitness = GetCumulativeFitness(Generations[Generations.Count - 1]);
-            Individual mama = RoulleteWheelSelection(orderdIndividualsByScore, ComulativeFitness);
-            Individual papa = null;
-            int tries = 1;
-            int similarity = 60;
-            do
-            {
-                papa = RoulleteWheelSelection(orderdIndividualsByScore, ComulativeFitness);
-                if (tries++ > 100)
-                {
-                    similarity++;
-                }
-                if (similarity > 99)
-                {
-                    break;
-                }
-            }
-            while (papa != null && mama.Name.Equals(papa.Name));
-
-            Individual baby = new Individual(mama, papa, name);
-            baby.Grade((decimal)BorderWeight, (decimal)QualityWeight, (decimal)ConnectivityWeight, (decimal)ShortnessWeight, (decimal)DeadendWeight, (decimal)LoopWeight);
-            try
-            {
-                if (baby != null)
-                    babies.Enqueue(baby);
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(e.Message);
-            }
-        }
-    }
-
-    private int ComputeSimilarity(Individual m, Individual p)
-    {
-        if (m.Name.Equals(p.Name))
-        {
-            return 100;
-        }
-        int Size = m.Maze.GetLength(0);
-        int totalElements = Size * Size;
-        int matchingElements = 0;
-
-        for (int i = 0; i < Size; i++)
-        {
-            for (int j = 0; j < Size; j++)
-            {
-                if (m.Maze[i, j] == p.Maze[i, j])
-                {
-                    matchingElements++;
-                }
-            }
-        }
-
-        double similarityPercentage = (double)matchingElements / totalElements * 100;
-        return (int)similarityPercentage;
     }
 
     private decimal[] GetCumulativeFitness(Generation generation)
@@ -527,10 +486,9 @@ public class Manager : MonoBehaviour
         return ret;
     }
 
-    
     private void FixedUpdate()
     {
-        
+
     }
 
     private void DrawMaze(Individual individual)
@@ -577,6 +535,75 @@ public class Manager : MonoBehaviour
             }
         }
     }
+
+    public void SaveDataToFile()
+    {
+        
+        string folderName = "/output/" + DateTime.Now.ToString("yyyyMMddhhmmss");
+        Directory.CreateDirectory(PathToSaveData + folderName);
+        t = new Thread(delegate ()
+        {
+            SaveAll(PathToSaveData, folderName);
+        });
+        t.Start();
+    }
+
+    public void SaveAll(string folderPath, string folderName)
+    {
+        List<string> csvLines = new List<string>();
+        csvLines.Add("TIME;" + TimeText.text);
+        csvLines.Add("SIZE;" + MazeSize);
+        if (pureRoulleteWheel)
+            csvLines.Add("SELECTION;ROULLETE WHEEL");
+        else if (pureElite)
+            csvLines.Add("SELECTION;ELITIST");
+        csvLines.Add("SIZE;" + MazeSize);
+        csvLines.Add("BORDER WEIGHT;QUALITY WEIGHT;CONNECTIVITY WEIGHT;SHORTNESS WEIGHT;DEADEND WEIGHT;LOOP WEIGHT");
+        csvLines.Add(string.Format("{0};{1};{2};{3};{4};{5}", BorderWeight, QualityWeight, ConnectivityWeight, ShortnessWeight, DeadendWeight, LoopWeight));
+        csvLines.Add("NAME;BORDER FITNESS;QUALITY FITNESS;CONNECTIVITY FITNESS;SHORTNESS FITNESS;DEADEND FITNESS;LOOP FITNESS;SCORE;SEED");
+        /*
+            NAME;
+            BORDER FITNESS;
+            QUALITY FITNESS;
+            CONNECTIVITY FITNESS;
+            SHORTNESS FITNESS;
+            DEADEND FITNESS;
+            LOOP FITNESS;
+            SCORE;
+            SEED
+         */
+
+
+        foreach (var generation in Generations)
+        {
+            int index = 1;
+            foreach (var individual in generation.Individuals)
+            {
+                Debug.Log(string.Format("Saving GEN: {0}, ITE: {1}", generation.Name, individual.Name));
+                csvLines.Add(string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8}",
+                    individual.Name,
+                    individual._Fitness.BorderScore,
+                    individual._Fitness.QualityScore,
+                    individual._Fitness.ConnectivityScore,
+                    individual._Fitness.ShortnessScore,
+                    individual._Fitness.DeadendScore,
+                    individual._Fitness.LoopScore,
+                    individual._Fitness.Score,
+                    individual.StringMaze));
+            }
+        }
+        csvLines.Add("");
+        csvLines.Add("GENERATION;SUM;AVERAGE;MEDIAN");
+        foreach (var generation in Generations)
+        {
+            decimal sum = generation.Individuals.Sum(x => x._Fitness.Score);
+            decimal average = generation.Individuals.Average(x => x._Fitness.Score);
+            decimal median = generation.Individuals.OrderBy(x => x._Fitness.Score).ToList()[(generation.Individuals.Count - 1) / 2]._Fitness.Score;
+            csvLines.Add(string.Format("{0};{1};{2};{3}", generation.Name, sum, average, median));
+        }
+        File.WriteAllLines(folderPath + folderName + "/Data.csv", csvLines);
+    }
+
 
     private void DeleteInstantiatedItems()
     {
@@ -638,6 +665,13 @@ public class Manager : MonoBehaviour
         if (t != null && t.IsAlive)
         {
             t.Abort();
+        }
+        foreach (var thread in allThreads)
+        {
+            if (thread.IsAlive)
+            {
+                thread.Abort();
+            }
         }
     }
 }
