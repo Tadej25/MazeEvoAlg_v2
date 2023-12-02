@@ -23,10 +23,84 @@ namespace Assets
             NumOfWalls = numOfWalls;
             StringSeed = seed;
             Seed = seed.Length > 9 ? seed.GetHashCode() : GenerateSeedFromString(StringSeed, ra);
+            //StringMaze = 
             //Debug.Log(string.Format("Seed sent in: {0}, seed generated: {1}", StringSeed, Seed));
             Maze = new int[Size, Size];
             r = new System.Random(Seed);
             ChildrenSeeds = new List<string>();
+        }
+
+        public Builder(int size, System.Random ra, Builder p1, Builder p2)
+        {
+            Size = size;
+            Maze = new int[Size, Size];
+            r = new System.Random();
+            if (p1 == null || p2 == null) 
+                GenerateRandomMaze(size, ra);
+            else
+            {
+                GenearteMazeFromParents(p1, p2, ra);
+            }
+
+        }
+
+        private void GenearteMazeFromParents(Builder parent1, Builder parent2, System.Random ra)
+        {
+            for(int i = 0; i < Size; i++)
+            {
+                for (int j = 0; j < Size; j++)
+                {
+                    int chance = parent1.r.Next(1, 101);
+                    if (chance < 46)
+                    {
+                        Maze[i,j] = parent1.Maze[i,j];
+                    }
+                    else if (chance < 96)
+                    {
+                        Maze[i, j] = parent2.Maze[i, j];
+                    }
+                    else
+                    {
+                        Maze[i, j] = ra.Next(0, 2);
+                    }
+                }
+            }
+        }
+
+        private void GenerateRandomMaze(int size, System.Random ra)
+        {
+            for (int i = 0; i < Size; i++)
+            {
+                for (int j = 0; j < Size; j++)
+                {
+                    Maze[i, j] = ra.Next(0, 2);
+                    if (i == 0 && j == 0) 
+                    {
+                        Maze[i, j] = 1;
+                    }
+                    if (i == 1 && j == 0) 
+                    {
+                        Maze[i, j] = 0;
+                    }
+                    if (i == 2 && j == 0) 
+                    {
+                        Maze[i, j] = 1;
+                    }
+
+                    if (i == Size - 1 && j == Size - 1)  
+                    {
+                        Maze[i, j] = 1;
+                    }
+                    if (i == Size - 2 && j == Size - 1)  
+                    {
+                        Maze[i, j] = 0;
+                    }
+                    if (i == Size - 3 && j == Size - 1)  
+                    {
+                        Maze[i, j] = 1;
+                    }
+                }
+            }
         }
 
         public Builder(Builder mama, Builder papa)
@@ -67,30 +141,30 @@ namespace Assets
         public void BuildMaze()
         {
             //Vsako črko pretvorimo v binarno vrednost in uporabimo to vrednost za izris labirinta
-            string seedInBinary = "";
-            foreach (char c in StringSeed)
-            {
-                seedInBinary += Convert.ToString(c, 2);
-            }
+            //string seedInBinary = "";
+            //foreach (char c in StringSeed)
+            //{
+            //    seedInBinary += Convert.ToString(c, 2);
+            //}
             int start = 0;
             int index = start;
             for (int i = 0; i < Size; i++)
             {
                 for (int j = 0; j < Size; j++)
                 {
-                    Maze[i, j] = int.Parse(seedInBinary[index++].ToString());
-                    if (index >= seedInBinary.Length)
-                    {
-                        start = r.Next(0, seedInBinary.Length);
-                        index = start;
-                    }
+                    //Maze[i, j] = int.Parse(BitMaze[index++].ToString());
+                    //if (index >= seedInBinary.Length)
+                    //{
+                    //    start = r.Next(0, seedInBinary.Length);
+                    //    index = start;
+                    //}
                 }
             }
         }
 
         public static string GenerateChildFromParents(Builder parent1, Builder parent2)
         {
-            string childStringSeed = "";
+            string childStringMaze = "";
             //45% da vzame gen od straša1
             //45% da vzame gen od starša2
             //5% da generira novi gen MUTACIJA
@@ -99,11 +173,11 @@ namespace Assets
                 int chance = parent1.r.Next(1, 101);
                 if (chance < 46)
                 {
-                    childStringSeed += parent1.StringSeed[i];
+                    childStringMaze += parent1.StringSeed[i];
                 }
                 else if (chance < 96)
                 {
-                    childStringSeed += parent2.StringSeed[i];
+                    childStringMaze += parent2.StringSeed[i];
                 }
                 else
                 {
@@ -114,7 +188,7 @@ namespace Assets
                         case 1: letter = (char)parent1.r.Next(65, 91); break;
                         case 2: letter = (char)parent1.r.Next(97, 123); break;
                     }
-                    childStringSeed += letter;
+                    childStringMaze += letter;
                 }
             }
             /*
@@ -162,7 +236,7 @@ namespace Assets
                 //}
             }
              */
-            return childStringSeed;
+            return childStringMaze;
         }
         public static int ComputeSimilarity(string s, string t)
         {

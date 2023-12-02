@@ -109,62 +109,64 @@ namespace Assets
         public float Score { 
             get 
             {
-                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness + WalledSpacesFitness + CorridorFitness + (SolvableFitness * SolvableFitnessWeight);
+                return OpenSpacesFitness + ClosedSpacesFitness + DeadEndsFitness + OuterWallFitness + WalledSpacesFitness + CorridorFitness + (SolvableFitness * SolvableFitnessWeight * 100);
             } 
         }
         public Builder builder { get; set; }
         public string MazeFileName { get; set; }
 
-        public static Fitness CheckFitness(int[,] maze)
+        public static Fitness CheckFitness(int[,] maze, bool randomIO)
         {
             Fitness fit = new Fitness();
             int height = maze.GetLength(0);
             int width = maze.GetLength(1);
 
-            int numOpenSpaces = 0;
-            int maxNumOfOpenSpaces = (width - 2) * (height - 2);
             float openSpacesFitness = 0;
 
-            int numOfOuterWalls = 0;
-            int maxNumOfOuterWalls = (width * 2 + (height - 2) * 2) - 2;
             float outerWallFitness = 0;
 
-            //Izračunam max število zaprtih prostorov (načeloma če bi bilo polje šahovnica je najslabši primer)
-            /*  ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
-                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
-                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
-                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
-                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
-                ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
-             */
-            float maxNumOfClosedSpaceCells = (float)((float)(height - 2) * (float)(width - 2));
-            int numOfClosedSpaces = 0;
             float closedSpacesFitness = 0;
 
-            //Dead end se smatram, da je celica ki je na treh od štirih mestih obdana z zidom in jih je isto veliko kot šahovnica
-            //le namesto da je vsaka vrstica zamaknjena za ena je vsaka druga zamaknjena za ena
-            /*  ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
-                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
-                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
-                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
-                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
-                ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
-             */
-            float maxNumOfDeadEnds = (float)((float)(height - 2) * (float)(width - 2) / 2f);
-            int numOfDeadEnds = 0;
             float deadEndsFitness = 0;
 
-            /**/
-            int numWalledSpaces = 0;
-            int maxNumOfWalledSpaces = (width - 2) * (height - 2);
             float walledSpacesFitness = 0;
 
-            /**/
-            int numOfCorridors = 0;
-            int maxNumOfCorridors = (((width - 2)) * ((height - 2) / 2) + ((height - 2) / 2 - 1));
             float corridorFitness = 0;
 
             int solvable = 0;
+
+            
+            outerWallFitness = CalculateOuterWallFitness(maze, width, height);
+
+            openSpacesFitness = CalculateOpenSpacesFitness(maze, width, height);
+
+            closedSpacesFitness = CalculateClosedSpacesFitness(maze, width, height);
+
+            deadEndsFitness = CalculateDeadEndFitness(maze, width, height);
+
+            walledSpacesFitness = CalculateWalledSpacesFitness(maze, width, height);
+
+            corridorFitness = CalculateCorridorFitness(maze, width, height);
+
+            solvable = CalculateSolvableFitness(maze, width, height, randomIO);
+
+            ///TODO: Dodaj še fitness kak dolga je pot od vhoda do cilja, daljša je boljša je
+
+            fit.OpenSpacesFitness = openSpacesFitness;
+            fit.OuterWallFitness = outerWallFitness;
+            fit.ClosedSpacesFitness = closedSpacesFitness;
+            fit.DeadEndsFitness = deadEndsFitness;
+            fit.WalledSpacesFitness = walledSpacesFitness;
+            fit.CorridorFitness = corridorFitness;
+            fit.SolvableFitness = solvable;
+            return fit;
+        }
+
+        private static float CalculateOuterWallFitness(int[,] maze, int width, int height)
+        {
+            float ret = 0;
+            int numOfOuterWalls = 0;
+            int maxNumOfOuterWalls = (width * 2 + (height - 2) * 2) - 2;
 
             #region OUTER_WALL_FITNESS
             //Preverjamo zgornji in spodnji rob
@@ -190,12 +192,20 @@ namespace Assets
                     numOfOuterWalls++;
                 }
             }
-            outerWallFitness = (float)numOfOuterWalls / (float)maxNumOfOuterWalls;
-            if (outerWallFitness > 1)
+            ret = (float)numOfOuterWalls / (float)maxNumOfOuterWalls;
+            if (ret > 1)
             {
-                outerWallFitness = 0;
+                ret = 0;
             }
+            return ret;
             #endregion
+        }
+
+        private static float CalculateOpenSpacesFitness(int[,] maze, int width, int height)
+        {
+            int numOpenSpaces = 0;
+            int maxNumOfOpenSpaces = (width - 2) * (height - 2);
+            float ret = 0;
 
             #region OPEN_SPACES_FITNESS
             for (int i = 1; i < height - 1; i++)
@@ -224,8 +234,25 @@ namespace Assets
                 }
             }
             int temp = maxNumOfOpenSpaces - numOpenSpaces;
-            openSpacesFitness = (float)temp / (float)maxNumOfOpenSpaces;
+            ret = (float)temp / (float)maxNumOfOpenSpaces;
+            return ret;
             #endregion
+        }
+
+        private static float CalculateClosedSpacesFitness(int[,] maze, int width, int height)
+        {
+            //Izračunam max število zaprtih prostorov (načeloma če bi bilo polje šahovnica je najslabši primer)
+            /*  ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
+                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
+                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
+                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
+                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
+                ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
+             */
+            float maxNumOfClosedSpaceCells = (float)((float)(height - 2) * (float)(width - 2));
+            int numOfClosedSpaces = 0;
+
+            float ret = 0;
 
             #region CLOSED_SPACES_FITNESS
 
@@ -245,7 +272,7 @@ namespace Assets
                         allNeighbours.Add(currentCell);
                         if (!allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).Any())
                         {
-                            numOfClosedSpaces+= allNeighbours.Count;
+                            numOfClosedSpaces += allNeighbours.Count;
                         }
                     }
                 }
@@ -258,8 +285,25 @@ namespace Assets
 
             //Za izračun fitnessa, izračunam kako daleč stran je število zaprtih prostorov od 0 zaprtih prostorov in bližje kot
             //je NULI boljše je
-            closedSpacesFitness = 1 - (numOfClosedSpaces / maxNumOfClosedSpaceCells);//((float)(Math.Abs(maxNumOfClosedSpaceCells - Math.Abs(0 - tempNumClosedSpaces)) / maxNumOfClosedSpaceCells));
+            ret = 1 - (numOfClosedSpaces / maxNumOfClosedSpaceCells);//((float)(Math.Abs(maxNumOfClosedSpaceCells - Math.Abs(0 - tempNumClosedSpaces)) / maxNumOfClosedSpaceCells));
             #endregion
+            return ret;
+        }
+
+        private static float CalculateDeadEndFitness(int[,] maze, int width, int height)
+        {
+            //Dead end se smatram, da je celica ki je na treh od štirih mestih obdana z zidom in jih je isto veliko kot šahovnica
+            //le namesto da je vsaka vrstica zamaknjena za ena je vsaka druga zamaknjena za ena
+            /*  ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
+                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
+                ⬛⬜⬛⬜⬛⬜⬛⬜⬛⬜⬛
+                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
+                ⬛⬛⬜⬛⬜⬛⬜⬛⬜⬛⬛
+                ⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛⬛
+             */
+            float maxNumOfDeadEnds = (float)((float)(height - 2) * (float)(width - 2) / 2f);
+            int numOfDeadEnds = 0;
+            float ret = 0;
 
             #region DEAD_END_FITNESS
             for (int y = 0; y < height; y++)
@@ -283,9 +327,17 @@ namespace Assets
                 }
             }
 
-            deadEndsFitness = (float)numOfDeadEnds / maxNumOfDeadEnds;
+            ret = (float)numOfDeadEnds / maxNumOfDeadEnds;
+            return ret;
             #endregion
+        }
 
+        private static float CalculateWalledSpacesFitness(int[,] maze, int width, int height)
+        {
+            /**/
+            int numWalledSpaces = 0;
+            int maxNumOfWalledSpaces = (width - 2) * (height - 2);
+            float ret = 0;
             #region WALLED_SPACES_FITNESS
             for (int i = 1; i < height - 1; i++)
             {
@@ -313,8 +365,17 @@ namespace Assets
                 }
             }
             int tempWalled = maxNumOfWalledSpaces - numWalledSpaces;
-            walledSpacesFitness = (float)tempWalled / (float)maxNumOfWalledSpaces;
+            ret = (float)tempWalled / (float)maxNumOfWalledSpaces;
+            return ret;
             #endregion
+        }
+
+        private static float CalculateCorridorFitness(int[,] maze, int width, int height)
+        {
+            /**/
+            int numOfCorridors = 0;
+            int maxNumOfCorridors = (((width - 2)) * ((height - 2) / 2) + ((height - 2) / 2 - 1));
+            float ret = 0;
 
             #region CORRIDOR_FITNESS
 
@@ -339,14 +400,19 @@ namespace Assets
                 }
             }
 
-            corridorFitness = (float)numOfCorridors / maxNumOfCorridors;
+            ret = (float)numOfCorridors / maxNumOfCorridors;
+            return ret;
 
             #endregion
+        }
 
-            #region SOLVABLE
-            
+        private static int CalculateSolvableFitness(int[,] maze, int width, int height, bool randomIO)
+        {
             Cell[,] newMazeToSolve = Crawler.GenerateMapToCrawl(maze);
-
+            int ret = 0;
+            if (randomIO)
+            {
+                #region RAND_SOLVABLE
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
@@ -357,32 +423,68 @@ namespace Assets
                         //Pridobimo vse celice ki so skupaj povezane (neprekinjena veriga sosedov) in če ni noben sosed na robu 
                         //labirinta (smatram kot izhod) potem je ta postor zaprt
                         currentCell.Visited = true;
-                        List<Cell> allNeighbours = Crawler.CheckNeighbours(ref currentCell, ref newMaze);
+                        List<Cell> allNeighbours = Crawler.CheckNeighbours(ref currentCell, ref newMazeToSolve);
                         if (allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).Any() && (currentCell.PosX == 0 || currentCell.PosX == width - 1 || currentCell.PosY == 0 || currentCell.PosY == height - 1))
                         {
                             var actualNeighbours = allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == height - 1).ToList();
                             List<Cell> exits = GetNeighbours(currentCell, actualNeighbours, width, height);
                             if (exits.Any())
                             {
-                                solvable = 1;
+                                ret = 1;
                             }
                         }
                     }
                 }
             }
-
             #endregion
+            }
+            else
+            {
+                #region STATIC_SOLVABLE
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        Cell currentCell = newMazeToSolve[y, x];
+                        if (currentCell.Value == 0 && currentCell.Visited == false)
+                        {
+                            //Pridobimo vse celice ki so skupaj povezane (neprekinjena veriga sosedov) in če ni noben sosed na robu 
+                            //labirinta (smatram kot izhod) potem je ta postor zaprt
+                            currentCell.Visited = true;
+                            List<Cell> allNeighbours = Crawler.CheckNeighbours(ref currentCell, ref newMazeToSolve);
+                            //Preverimo ali sta vhod in izhod obdana z zidom
+                            /*
+                            ⬛
+                            ⬜ - Vhod/Izhod
+                            ⬛
+                             */
+                            bool VhodExist = allNeighbours.Any(x => x.PosX == 0 && x.PosY == 1);
+                            if (VhodExist)
+                            {
+                                bool above = allNeighbours.Any(x => x.PosX == 0 && x.PosY == 2);
+                                bool below = allNeighbours.Any(x => x.PosX == 0 && x.PosY == 0);
+                                VhodExist = above == false && below == false;
+                            }
 
-            ///TODO: Dodaj še fitness kak dolga je pot od vhoda do cilja, daljša je boljša je
+                            bool ExitExist = allNeighbours.Any(x => x.PosX == width - 1 && x.PosY == width - 2);
+                            if (VhodExist)
+                            {
+                                bool above = allNeighbours.Any(x => x.PosX == width - 1 && x.PosY == width - 1);
+                                bool below = allNeighbours.Any(x => x.PosX == width - 1 && x.PosY == width - 3);
+                                VhodExist = above == false && below == false;
+                            }
+                            bool NoOtherExits = true;// (allNeighbours.Where(x => x.PosX == 0 || x.PosX == width - 1 || x.PosY == 0 || x.PosY == width - 1).ToList().Count - 2) < 1;
+                            if (VhodExist && ExitExist && NoOtherExits)
+                            {
+                                ret = 1;
+                            }
+                        }
+                    }
+                }
+                #endregion
+            }
 
-            fit.OpenSpacesFitness = openSpacesFitness;
-            fit.OuterWallFitness = outerWallFitness;
-            fit.ClosedSpacesFitness = closedSpacesFitness;
-            fit.DeadEndsFitness = deadEndsFitness;
-            fit.WalledSpacesFitness = walledSpacesFitness;
-            fit.CorridorFitness = corridorFitness;
-            fit.SolvableFitness = solvable;
-            return fit;
+            return ret;
         }
 
         private static List<Cell> GetNeighbours(Cell borderCell, List<Cell> allBorderNeighbours, int width, int height)

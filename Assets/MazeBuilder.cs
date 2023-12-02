@@ -51,20 +51,23 @@ public class MazeBuilder : MonoBehaviour
     public int SeedLenght = 9;
 
     //Uteži
-    [Range(0,1)]
+    [Range(0,10)]
     public float OpenSpacesWeight = 1;
-    [Range(0,1)]
+    [Range(0,10)]
     public float ClosedSpacesWeight = 1;
-    [Range(0,1)]
+    [Range(0,10)]
     public float DeadEndWeight = 1;
-    [Range(0,1)]
+    [Range(0,100)]
     public float OuterWallWeight = 1;
-    [Range(0,1)]
+    [Range(0,10)]
     public float WalledSpacesWeight = 1;
-    [Range(0,1)]
+    [Range(0,10)]
     public float CorridorWeight = 1;
     [Range(0,1)]
     public int HasToBeSolvable = 1;
+
+    public bool DynamicIO = false;
+    public bool Roullete = true;
 
     public GameObject loading;
     public Text GeneratedGenerationsText;
@@ -133,84 +136,44 @@ public class MazeBuilder : MonoBehaviour
                 result = GenerateInduviduals(gen, width, r);
             else
             {
+
                 //Reprodukcija
-                var breedingInduviduals = result.OrderByDescending(x => x.Score).ToList().GetRange(0, result.Count / 2);
+                var breedingInduviduals = result.OrderByDescending(x => x.SolvableFitness).ThenByDescending(x => x.Score).ToList().GetRange(0, result.Count / 2);
+                breedingInduviduals = breedingInduviduals.OrderBy(x => r.Next()).ToList();
                 var allStringSeed = breedingInduviduals.Select(x => x.builder.StringSeed).ToList();
-                Queue<string> newGenerationSeeds = new Queue<string>();
-
-                while (newGenerationSeeds.Count < numOfIterations)
+                float sumFitness = 0;
+                foreach (var individual in breedingInduviduals)
                 {
-                    //Izberemo prvega straša tako da izberemo prvega v razverščenem seznamu od najmanj otrok do največ (da svak dobi vsaj enega)
-                    int MinNumOfChildren = 0;
-                    var temp = breedingInduviduals.OrderBy(x => x.builder.ChildrenSeeds.Count).ToList();
-                    MinNumOfChildren = temp[0].builder.ChildrenSeeds.Count;
-                    Builder parent1 = breedingInduviduals.Where(x => x.builder.ChildrenSeeds.Count <= MinNumOfChildren).First().builder;
-                    Builder parent2 = null;
-                    int attempts = 0;
-                    int similarity = parent1.StringSeed.Length/2;
-                    //Preveri morda če ta drugi partner že ni na kapaciteti z otroci
-                    while (parent2 == null && parent1 != parent2 && attempts < 10)
-                    {
-                        try
-                        {
-                            //seznam partnerjev naključno zmešamo
-                            int n = breedingInduviduals.Count;
-                            while (n > 1)
-                            {
-                                n--;
-                                int k = r.Next(n + 1);
-                                var value = breedingInduviduals[k];
-                                breedingInduviduals[k] = breedingInduviduals[n];
-                                breedingInduviduals[n] = value;
-                            }
+                    sumFitness += individual.Score;
+                }
+                List<float> cumulativeFitness = new List<float>();
+                cumulativeFitness.Add(0);
+                foreach (var individual in breedingInduviduals)
+                {
+                    cumulativeFitness.Add(cumulativeFitness.Last() + (individual.Score/sumFitness));
+                }
+                if (breedingInduviduals.Any(x=>x.SolvableFitness >= 1))
+                {
+                    Fitness temp = breedingInduviduals.Where(x => x.SolvableFitness == 1).FirstOrDefault();
+                    Debug.Log("Rešljiv labirint v generaciji " + gen);
+                }
+                Queue<Builder> newGenerationBuilders = new Queue<Builder>();
 
-                            //Poiščemo prvega partnerja ki je trenutnemu strašu najmanj podoben
-                            Fitness foundParent = null;
-                            foreach (var induvidual in breedingInduviduals)
-                            {
-                                if (induvidual.builder != parent1)
-                                {
-                                    int parentSimilarity = Builder.ComputeSimilarity(parent1.StringSeed, induvidual.builder.StringSeed);
-                                    if (parentSimilarity >= similarity)
-                                    {
-                                        foundParent = induvidual;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (foundParent != null)
-                            { 
-                                parent2 = foundParent.builder;
-                            }
-                            else
-                            {
-                                //Če partnerja ne najdemo zmanjšamo potrebno razliko za iskanje partnerja
-                                similarity--;
-                            }
-                            //attempts++;
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogError(e.Message);
-                        }
-                    }
-                    if (attempts >= 9)
+                while (newGenerationBuilders.Count < numOfIterations)
+                {
+                    if (Roullete)
                     {
-                        Debug.LogError("Nismo našli partnerja, gen: " + gen);
-                        if (killThread)
+                        Builder parent1 = RouletteWheelSelection(breedingInduviduals, cumulativeFitness, r);
+                        Builder parent2 = RouletteWheelSelection(breedingInduviduals, cumulativeFitness, r);
+                        while (parent1.Maze.Equals(parent2.Maze))
                         {
-                            t.Abort();
+                            parent2 = RouletteWheelSelection(breedingInduviduals, cumulativeFitness, r);
                         }
-                    }
-                    else
-                    {
-                        string childSeed = Builder.GenerateChildFromParents(parent1, parent2);
-                        newGenerationSeeds.Enqueue(childSeed);
-                        parent1.ChildrenSeeds.Add(childSeed);
-                        parent2.ChildrenSeeds.Add(childSeed);
+
+                        newGenerationBuilders.Enqueue(new Builder(width, r, parent1, parent2));
                     }
                 }
-                result = GenerateInduviduals(gen, width, r, newGenerationSeeds);
+                result = GenerateInduviduals(gen, width, r, newGenerationBuilders);
             }
             generations.Add(gen, result);
         }
@@ -241,31 +204,53 @@ public class MazeBuilder : MonoBehaviour
         }
     }
 
-    
-    List<Fitness> GenerateInduviduals(int generation, int width, System.Random r, Queue<string> newGenSeeds = null)
+    private Builder RouletteWheelSelection(List<Fitness> breedingInduviduals, List<float> cumulativeFitness, System.Random r)
+    {
+        Builder ret = null;
+        while (ret == null)
+        {
+            float chance = (float)r.NextDouble();
+            for (int i = 0; i < cumulativeFitness.Count; i++)
+            {
+                if (cumulativeFitness[i+1] > chance)
+                {
+                    ret = breedingInduviduals[i].builder;
+                    break;
+                }
+            }
+        }
+        return ret;
+    }
+
+    List<Fitness> GenerateInduviduals(int generation, int width, System.Random r, Queue<Builder> newGenSeeds = null)
     {
         List<Fitness> fits = new List<Fitness>();
         try
         {
-            for (int iteration = 1; iteration <= numOfIterations; iteration++)
+            do
             {
-                string tempSeed = (newGenSeeds == null) ? GenerateRandomCharArray(r) : newGenSeeds.Dequeue();
-                ///TODO: Spremeni št zidov
-                Builder builer = new Builder(width, (int)System.Math.Pow(width, 2), tempSeed, r);
-                builer.BuildMaze();
-                Fitness fit = Fitness.CheckFitness(builer.Maze);
+                fits = new List<Fitness>();
+                for (int iteration = 1; iteration <= numOfIterations; iteration++)
+                {
+                    //string tempSeed = (newGenSeeds == null) ? GenerateRandomCharArray(r) : newGenSeeds.Dequeue();
+                    ///TODO: Spremeni št zidov
+                    Builder builer = (newGenSeeds == null) ? new Builder(width, r, null, null) : newGenSeeds.Dequeue();
+                    builer.BuildMaze();
+                    Fitness fit = Fitness.CheckFitness(builer.Maze, DynamicIO);
 
-                fit.builder = builer;
-                fit.OpenSpacesFitnessWeight = OpenSpacesWeight;
-                fit.ClosedSpacesFitnessWeight = ClosedSpacesWeight;
-                fit.DeadEndsFitnessWeight = DeadEndWeight;
-                fit.OuterWallFitnessWeight = OuterWallWeight;
-                fit.WalledSpacesFitnessWeight = WalledSpacesWeight;
-                fit.CorridorFitnessWeight = CorridorWeight;
-                fits.Add(fit);
+                    fit.builder = builer;
+                    fit.OpenSpacesFitnessWeight = OpenSpacesWeight;
+                    fit.ClosedSpacesFitnessWeight = ClosedSpacesWeight;
+                    fit.DeadEndsFitnessWeight = DeadEndWeight;
+                    fit.OuterWallFitnessWeight = OuterWallWeight;
+                    fit.WalledSpacesFitnessWeight = WalledSpacesWeight;
+                    fit.CorridorFitnessWeight = CorridorWeight;
+                    fit.SolvableFitnessWeight = HasToBeSolvable;
+                    fits.Add(fit);
 
-                //Thread.Sleep(1);
-            }
+                    //Thread.Sleep(1);
+                }
+            } while (fits.Any(x => x.SolvableFitness == 1) == false && newGenSeeds == null);
         }
         catch (Exception e)
         {
@@ -340,6 +325,20 @@ public class MazeBuilder : MonoBehaviour
                 {
                     instantiatedGO.Add(Instantiate(white, new Vector3(screenX + x, screenY + y, 0), Quaternion.identity));
                 }
+                if (
+                    x == width - 1 &&
+                    y == width - 2)
+                {
+                    GameObject temp = instantiatedGO.Last();
+                    temp.GetComponent<Renderer>().material.color = new Color(255, 255, 0); // yellow, top right
+                }
+                if (
+                    x == 0 &&
+                    y == 1)
+                {
+                    GameObject temp = instantiatedGO.Last();
+                    temp.GetComponent<Renderer>().material.color = new Color(0, 255, 255); //teal bottom left
+                }
             }
         }
     }
@@ -372,11 +371,11 @@ public class MazeBuilder : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                G_Slider.value += 1;
+                G_Slider.value += 10;
             }
             else if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                G_Slider.value -= 1;
+                G_Slider.value -= 10;
             }
         }
         else if (Input.GetKeyDown(KeyCode.DownArrow))
