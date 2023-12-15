@@ -24,6 +24,8 @@ namespace Assets
             } 
         }
 
+        public bool HasStringMaze { get { return !string.IsNullOrEmpty(stringMaze); } }
+
         public Random r;
 
         public Individual(int Size, string name, Random r)
@@ -89,8 +91,8 @@ namespace Assets
             //    DeadendWeight = deadendWeight,
             //    LoopWeight = loopWeight
             //};
-            _Fitness = new Fitness2(borderWeight, connectivityWeight, deadendWeight, loopWeight, qualityWeight, shortnessWeight);
-            _Fitness.CaluclateScores(this);
+            this._Fitness = new Fitness2(borderWeight, connectivityWeight, deadendWeight, loopWeight, qualityWeight, shortnessWeight);
+            this._Fitness.CaluclateScores(this);
         }
 
         public decimal GetScore()

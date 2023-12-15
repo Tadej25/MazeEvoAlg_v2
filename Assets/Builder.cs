@@ -17,7 +17,7 @@ namespace Assets
         public List<string> ChildrenSeeds { get; set; }
         public System.Random r { get; set; }
 
-        public Builder(int size, int numOfWalls, string seed, System.Random ra)
+        public Builder(int size, int numOfWalls, string seed, Unity.Mathematics.Random ra)
         {
             Size = size;
             NumOfWalls = numOfWalls;
@@ -108,7 +108,7 @@ namespace Assets
 
         }
 
-        public int GenerateSeedFromString(string seed, System.Random r)
+        public int GenerateSeedFromString(string seed, Unity.Mathematics.Random r)
         {
             string newSeed = "";
             foreach (char letter in seed)
@@ -117,7 +117,7 @@ namespace Assets
                 newSeed += intChar;
             }
             int nSeed = int.Parse(newSeed);
-            return r.Next(0, 2) == 0 ? nSeed : nSeed * (-1);
+            return r.NextInt(0, 2) == 0 ? nSeed : nSeed * (-1);
         }
 
         public int ReduceIntSize(int number)

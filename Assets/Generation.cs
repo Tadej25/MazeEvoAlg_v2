@@ -50,9 +50,25 @@ namespace Assets
                 return false;
             }
 
+            Generation generationToCOmapare= (Generation)obj;
             // TODO: write your implementation of Equals() here
-            throw new NotImplementedException();
-            return base.Equals(obj);
+            this.GenerateAverageMaze();
+            generationToCOmapare.GenerateAverageMaze();
+
+            int Size = AverageMaze.GetLength(0);
+
+            for (int y = 0; y < Size; y++)
+            {
+                for (int x = 0; x < Size; x++)
+                {
+                    if (this.AverageMaze[y,x] != generationToCOmapare.AverageMaze[y,x])
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
     }
 }

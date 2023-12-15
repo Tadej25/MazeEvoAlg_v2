@@ -485,15 +485,5 @@ public class MazeBuilder : MonoBehaviour
         }
         File.WriteAllLines(folderPath + folderName + "/Data.csv", csvLines);
     }
-    void OnApplicationQuit()
-    {
-        try
-        {
-            t.Abort();
-        }
-        catch (Exception e)
-        {
-            Debug.LogError(e.Message);
-        }
-    }
+    
 }

@@ -38,16 +38,17 @@ namespace Assets
 
         public decimal Score{ 
             get 
-            { 
-                return 
-                    BorderScore 
+            {
+                decimal rez = BorderScore
                     + SolvableScore
-                    + ConnectivityScore 
-                    + DeadendScore 
-                    + LoopScore 
-                    + QualityScore 
-                    + ShortnessScore
-                    ; 
+                    + ConnectivityScore
+                    + DeadendScore
+                    + LoopScore
+                    + QualityScore
+                    + ShortnessScore;
+                if (rez < 0)
+                    rez = 1;
+                return rez;
             } 
         }
 
@@ -94,7 +95,9 @@ namespace Assets
             //SolvableScore = CheckMazeSolvability(individual.Maze);
             SolvableWeight2 = CheckMazeSolvability(individual.Maze);
             ConnectivityScore = -1 * CheckMazeConnectivity(individual.Maze);
-            ShortnessScore = -1 * CheckMazeShortness(individual.Maze);
+            ShortnessScore = 0;
+            if (SolvableWeight2 > 0)
+                ShortnessScore = CheckMazeShortness(individual.Maze);
             decimal[] simplicityRez = ChekMazeSimplicity(individual.Maze);
             DeadendScore = simplicityRez[0];
             LoopScore = simplicityRez[1];
@@ -103,7 +106,6 @@ namespace Assets
         private decimal CheckMazeSolvability(int[,] maze)
         {
             int Size = maze.GetLength(0);
-            string sMaze = Individual.GetStringMaze(maze);
             int[,] tempMaze = maze.Clone() as int[,];
             if (DepthFirstSerachInner(1, 1, tempMaze) && maze[1, 0] == 0 && maze[Size - 2, Size - 1] == 0)
             {
@@ -123,10 +125,9 @@ namespace Assets
             {
                 for (int x = 0; x < Size; x++)
                 {
-                    if (tempMaze[y,x] == 0)
+                    if (tempMaze[y,x] == 0 && DepthFirstSearch(x, y, tempMaze))
                     {
                         componentCount++;
-                        DepthFirstSearch(x, y, tempMaze);
                     }
                 }
             }
@@ -200,7 +201,7 @@ namespace Assets
             var pq = new PriorityQueue<PriorityElement>();  // (cost, row, col)
             pq.Enqueue(new PriorityElement(0, 1, 0));
 
-            var visited = new HashSet<Tuple<int, int>>();
+            HashSet<Tuple<int, int>> visited = new HashSet<Tuple<int, int>>();
 
             while (pq.Count > 0)
             {
@@ -230,7 +231,7 @@ namespace Assets
                         pq.Enqueue(new PriorityElement(cost + 1, nr, nc));
                 }
             }
-            return 10000;
+            return 0;
 
         }
         
@@ -262,7 +263,7 @@ namespace Assets
 
                         if (neighborsCount == 1)
                             deadEnds++;
-                        else if (neighborsCount == 3)
+                        else if (neighborsCount >= 3)
                             loops++;
                     }
                 }
